@@ -1,6 +1,6 @@
 [project]
 name = "xtr-lock"
-version = "0.1.0"
+version = "1.0.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
+# A placeholder: versioned with the libraries, never published or split.
+classifiers = ["Private :: Do Not Upload"]
 dependencies = []
 
 [build-system]
