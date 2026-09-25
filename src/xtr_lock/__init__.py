@@ -1,2 +1,1 @@
-def hello() -> str:
-    return "Hello from xtr-lock!"
+"""Locks around shared resources, after Symfony's Lock component."""
