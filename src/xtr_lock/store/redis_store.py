@@ -6,14 +6,13 @@ import base64
 import hashlib
 import math
 import secrets
-from typing import TYPE_CHECKING, Final, Protocol, cast, final
+from typing import TYPE_CHECKING, ClassVar, Final, Protocol, cast, final
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from typing_extensions import override
 from xtr_clock import Clock
 
 from xtr_lock.exception import (
-    InvalidArgumentError,
     InvalidTtlError,
     LockConflictedError,
     LockStorageError,
@@ -21,6 +20,7 @@ from xtr_lock.exception import (
 from xtr_lock.shared_lock_store_interface import SharedLockStoreInterface
 
 from .expiring_store_mixin import ExpiringStoreMixin
+from .redis_connection import create_redis_client
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Sequence
@@ -203,14 +203,6 @@ _EXISTS: Final = """
     return false
 """
 
-_SCHEMES: Final = {
-    "redis": "redis",
-    "rediss": "rediss",
-    "valkey": "redis",
-    "valkeys": "rediss",
-    "unix": "unix",
-}
-
 
 class _ScriptingClient(Protocol):
     """The two calls this store makes, typed as the asyncio client answers them.
@@ -245,6 +237,11 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
 
     Works with Valkey too. One server, not a cluster.
     """
+
+    MISSING_CLIENT: ClassVar[str] = (
+        'A Redis lock store needs the redis client; install "xtr-lock[redis]".'
+    )
+    """What a Redis DSN is refused with when the client library is not installed."""
 
     __slots__ = (
         "_clock",
@@ -337,22 +334,7 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
                 ``redis`` extra is not installed.
         """
         dsn, _ = _split_prefix(dsn)
-        scheme, separator, rest = dsn.partition(":")
-        target = _SCHEMES.get(scheme.lower()) if separator else None
-        if target is None:
-            raise InvalidArgumentError(
-                f'"{scheme}" is not a Redis scheme; expected one of {", ".join(_SCHEMES)}.',
-            )
-
-        try:
-            from redis.asyncio import Redis  # noqa: PLC0415 — the redis extra is optional.
-        except ImportError as error:
-            raise InvalidArgumentError(
-                'A Redis lock store needs the redis client; install "xtr-lock[redis]".',
-            ) from error
-
-        # Only the keyword arguments are untyped, and none are passed.
-        return Redis.from_url(f"{target}:{rest}")  # pyright: ignore[reportUnknownMemberType]
+        return create_redis_client(dsn, missing=RedisStore.MISSING_CLIENT)
 
     @property
     def initial_ttl(self) -> float:

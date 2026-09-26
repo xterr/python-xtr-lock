@@ -182,6 +182,10 @@ Where a store has no wait of its own, a blocking acquire retries every 100 ms, g
 `StoreFactory.create_store(...)` builds any of them from a DSN, or a `RedisStore` from an
 asyncio Redis client. Its error messages name a DSN's scheme only, never its credentials.
 
+The Redis DSN rules are shared with every package that reaches Redis the same way:
+`xtr_lock.store` exports `REDIS_SCHEMES`, `is_redis_dsn`, `create_redis_client`,
+`is_redis_client` and `redis_installed`.
+
 ### `InMemoryStore`
 
 A dictionary. Every method completes without awaiting, so tasks on one event loop never see

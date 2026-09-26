@@ -2,26 +2,22 @@
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from typing import TYPE_CHECKING, Final, TypeGuard, final
+from typing import TYPE_CHECKING, Final, final
 
 from xtr_lock.exception import InvalidArgumentError
 
 from .flock_store import FlockStore
 from .in_memory_store import InMemoryStore
 from .null_store import NullStore
+from .redis_connection import is_redis_client, is_redis_dsn, redis_installed
 from .redis_store import RedisStore
 
 if TYPE_CHECKING:
-    from redis.asyncio import Redis
-
     from xtr_lock.persisting_store_interface import PersistingStoreInterface
 
 __all__ = ["StoreFactory"]
 
 _FLOCK_PREFIX: Final = "flock://"
-_REDIS_PREFIXES: Final = ("redis:", "rediss:", "valkey:", "valkeys:", "unix:")
 
 
 @final
@@ -49,7 +45,7 @@ class StoreFactory:
             InvalidArgumentError: When no store serves ``connection``. The
                 message names its scheme or type only, never credentials.
         """
-        if _is_redis_client(connection):
+        if is_redis_client(connection):
             return RedisStore(connection)
 
         if not isinstance(connection, str):
@@ -63,7 +59,7 @@ class StoreFactory:
             return FlockStore()
         if connection.startswith(_FLOCK_PREFIX):
             return FlockStore(connection.removeprefix(_FLOCK_PREFIX))
-        if connection.startswith(_REDIS_PREFIXES):
+        if is_redis_dsn(connection):
             return RedisStore.from_url(connection)
         if connection == "in-memory":
             return InMemoryStore()
@@ -83,24 +79,12 @@ class StoreFactory:
         if connection in ("flock", "in-memory", "null") or connection.startswith(_FLOCK_PREFIX):
             return
 
-        if connection.startswith(_REDIS_PREFIXES):
-            if importlib.util.find_spec("redis") is None:
-                raise InvalidArgumentError(
-                    'A Redis lock store needs the redis client; install "xtr-lock[redis]".',
-                )
+        if is_redis_dsn(connection):
+            if not redis_installed():
+                raise InvalidArgumentError(RedisStore.MISSING_CLIENT)
             return
 
         scheme, separator, _ = connection.partition(":")
         described = f"{scheme}:" if separator else connection
 
         raise InvalidArgumentError(f'Unsupported connection: "{described}".')
-
-
-def _is_redis_client(connection: object) -> TypeGuard[Redis]:
-    # Without the client library imported, nothing can be one of its clients.
-    if "redis.asyncio" not in sys.modules:
-        return False
-
-    from redis.asyncio import Redis as Client  # noqa: PLC0415 — the redis extra is optional.
-
-    return isinstance(connection, Client)
