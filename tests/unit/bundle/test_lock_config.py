@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import pytest
+from xtr_dependency_injection import Reference
 
 from xtr_lock import InvalidArgumentError
-from xtr_lock.bundle import DEFAULT_RESOURCE, ConnectionReference, LockConfig
+from xtr_lock.bundle import DEFAULT_RESOURCE, LockConfig
 
 
 def test_the_default_is_one_flock_resource() -> None:
@@ -15,7 +16,7 @@ def test_no_resources_means_the_default_one() -> None:
 
 
 def test_every_resource_reads_as_a_tuple_of_stores() -> None:
-    reference = ConnectionReference(object, "q")
+    reference = Reference(object, "q")
     config = LockConfig(
         resources={
             "one": "in-memory",

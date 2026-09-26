@@ -4,18 +4,18 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TypeAlias, cast
+from typing import TypeAlias
+
+from xtr_dependency_injection import Reference, one_or_many
 
 from xtr_lock.exception import InvalidArgumentError
-
-from .connection_reference import ConnectionReference
 
 __all__ = ["DEFAULT_RESOURCE", "LockConfig", "StoreEntry"]
 
 DEFAULT_RESOURCE = "default"
 """The resource whose factory is provided without a qualifier."""
 
-StoreEntry: TypeAlias = str | ConnectionReference
+StoreEntry: TypeAlias = str | Reference
 """One store: a DSN or keyword :class:`~xtr_lock.store.StoreFactory` reads, or a connection."""
 
 
@@ -34,12 +34,12 @@ class LockConfig:
 
     A store is one of:
 
-    - ``"flock"`` — files in a directory of the system's temporary directory
-      set aside for this project;
+    - ``"flock"`` — files in ``lock`` under the kernel's ``share_dir``, a
+      directory of the system's temporary one set aside for this project;
     - any DSN :meth:`~xtr_lock.store.StoreFactory.create_store` reads —
       ``"flock:///var/lock/app"``, ``"in-memory"``, ``"null"``,
       ``"redis://host:6379"`` and the like — including ``env(...)``;
-    - a :class:`ConnectionReference` to a client the container provides.
+    - a :class:`Reference` to a client the container provides.
 
     ```python
     LockConfig(
@@ -68,10 +68,10 @@ class LockConfig:
         for name, entries in self.resources.items():
             if not isinstance(name, str) or not name:  # pyright: ignore[reportUnnecessaryIsInstance] -- configs are written by hand; the annotation is not enforced
                 raise InvalidArgumentError(f"a lock resource needs a non-empty name, got {name!r}")
-            for entry in _entries(entries):
-                if not isinstance(entry, (str, ConnectionReference)):  # pyright: ignore[reportUnnecessaryIsInstance] -- as above
+            for entry in one_or_many(entries):
+                if not isinstance(entry, (str, Reference)):  # pyright: ignore[reportUnnecessaryIsInstance] -- as above
                     raise InvalidArgumentError(
-                        f'A lock store must be a string or a ConnectionReference, got "{entry!r}" '
+                        f'A lock store must be a string or a Reference, got "{entry!r}" '
                         f'for the "{name}" resource.',
                     )
 
@@ -79,12 +79,4 @@ class LockConfig:
         """Return each resource's stores as a tuple; the default resource when none is set."""
         resources = self.resources or _default_resources()
 
-        return {name: _entries(entries) for name, entries in resources.items()}
-
-
-def _entries(entries: StoreEntry | Sequence[StoreEntry]) -> tuple[StoreEntry, ...]:
-    # Anything but a list or a tuple is one store, and validation says whether it is one.
-    if isinstance(entries, (list, tuple)):
-        return tuple(entries)
-
-    return (cast("StoreEntry", entries),)
+        return {name: one_or_many(entries) for name, entries in resources.items()}

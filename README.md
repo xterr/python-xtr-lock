@@ -322,14 +322,14 @@ class ReportBuilder:
 
 | Store entry | Store |
 |---|---|
-| `"flock"` | `FlockStore` in `<temporary directory>/xtr-lock/<digest of the project directory>`, so two projects on one machine never share lock files |
+| `"flock"` | `FlockStore` in `lock` under `kernel.share_dir` — `<temporary directory>/xtr/<digest of the project directory>` — so two projects on one machine never share lock files |
 | any DSN in the table above, or `env(...)` | what `StoreFactory` builds; a Redis connection opened from a DSN is closed with the container |
-| `ConnectionReference(Redis, "locks")` | a `RedisStore`, without a prefix, on the client the container provides under that type and qualifier; the application keeps closing it |
+| `Reference(Redis, "locks")` (from `xtr_dependency_injection`) | a `RedisStore`, without a prefix, on the client the container provides under that type and qualifier; the application keeps closing it |
 
 - **Zero config**: with no configuration, `{"default": "flock"}`. Nothing is opened until a
   factory is first asked for.
 - **Checked at boot**: booting reads the configuration, `env()` values included, and refuses a
-  DSN no store serves, a Redis DSN without the `redis` extra, or a `ConnectionReference` the
+  DSN no store serves, a Redis DSN without the `redis` extra, or a `Reference` the
   container does not provide — naming the resource, never a DSN's credentials. A variable a
   DSN needs must therefore be set when the application starts.
 - **Logging**: when the logging bundle is active, a `lock` channel is added and every lock
