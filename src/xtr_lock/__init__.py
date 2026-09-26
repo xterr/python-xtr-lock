@@ -1,1 +1,1 @@
-"""Locks around shared resources, after Symfony's Lock component."""
+"""Locks around shared resources. Not implemented yet."""

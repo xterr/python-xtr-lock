@@ -2,7 +2,7 @@
 
 # xtr-lock
 
-**Locks around shared resources, after Symfony's Lock component.**
+**Locks around shared resources. Not implemented yet.**
 
 <img alt="python 3.11+" src="https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white">
 <img alt="status: planned" src="https://img.shields.io/badge/status-planned-lightgrey">

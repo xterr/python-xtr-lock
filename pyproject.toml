@@ -1,7 +1,7 @@
 [project]
 name = "xtr-lock"
 version = "1.1.0"
-description = "Locks around shared resources, after Symfony's Lock component. Not implemented yet."
+description = "Locks around shared resources. Not implemented yet."
 readme = "README.md"
 authors = [
     { name = "Razvan Ceana", email = "razvan@ceana.ro" }
@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
-keywords = ["lock", "mutex", "concurrency", "symfony"]
+keywords = ["lock", "mutex", "concurrency"]
 classifiers = [
     "Development Status :: 1 - Planning",
     "Intended Audience :: Developers",
