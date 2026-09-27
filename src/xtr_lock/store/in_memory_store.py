@@ -86,7 +86,13 @@ class InMemoryStore(SharedLockStoreInterface):
 
     @override
     async def put_off_expiration(self, key: Key, ttl: float) -> None:
-        """Do nothing: a lock in memory is held until it is released."""
+        """Check ``key`` still holds the lock; a lock in memory is held until it is released.
+
+        Raises:
+            LockConflictedError: When ``key`` does not hold the lock.
+        """
+        if not await self.exists(key):
+            raise LockConflictedError(str(key))
 
     @override
     async def delete(self, key: Key) -> None:

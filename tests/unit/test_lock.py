@@ -25,6 +25,7 @@ from xtr_lock import (
     LockAcquiringError,
     LockConflictedError,
     LockExpiredError,
+    LockFactory,
     LockReleasingError,
 )
 
@@ -672,3 +673,12 @@ async def test_a_cancelled_refresh_after_saving_is_taken_back() -> None:
         await acquiring
 
     assert store.called("delete") == [("r",)]
+
+
+async def test_refreshing_a_lock_never_acquired_reports_the_conflict() -> None:
+    lock = LockFactory(InMemoryStore()).create_lock("never-acquired", 30.0)
+
+    with pytest.raises(LockConflictedError):
+        await lock.refresh()
+
+    assert not await lock.is_acquired()

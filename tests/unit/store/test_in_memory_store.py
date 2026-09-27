@@ -6,7 +6,7 @@ from typing import cast
 import pytest
 
 from tests.support.store_conformance import AbstractStoreTests, SharedLockStoreTests
-from xtr_lock import InMemoryStore, Key
+from xtr_lock import InMemoryStore, Key, LockConflictedError
 
 pytestmark = pytest.mark.anyio
 
@@ -44,3 +44,8 @@ async def test_two_stores_do_not_share_locks() -> None:
 
     await first.save(Key("r"))
     await second.save(Key("r"))
+
+
+async def test_putting_off_the_expiration_of_a_lock_not_held_is_a_conflict() -> None:
+    with pytest.raises(LockConflictedError):
+        await InMemoryStore().put_off_expiration(Key("r"), 10)
