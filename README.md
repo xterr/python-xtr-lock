@@ -272,6 +272,25 @@ class (`key.set_state(MyStore, token)`), shorten the key's lifetime with `key.re
 when the store sets one, and derive from `ExpiringStoreMixin` to have `_check_not_expired(key)`
 take back a lock that expired while being stored.
 
+## Use in an application
+
+Everything adding this package to an application on
+[xtr-dependency-injection](../xtr-dependency-injection) takes — and, read backwards, what removing it undoes.
+
+- **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines.
+- **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
+  `xtr_lock.bundle`.
+- **Brings along** — the logging bundle, when xtr-logging is installed.
+- **Configure** — optional: with no configuration the `default` resource keeps file locks,
+  enough for processes on one machine. Resources go in `<app>/config/lock.py`, a `@configure`
+  function returning `LockConfig` — see [Kernel / bundle](#kernel--bundle).
+- **Environment** — nothing required. A DSN given as `env(...)` must be set when the
+  application boots: booting checks every resource.
+- **Ignore** — nothing: lock files live under `kernel.share_dir`, outside the project.
+- **Remove** — drop the `BUNDLES` entry, delete `<app>/config/lock.py`, then
+  `uv remove xtr-lock` — unless xtr-cache or xtr-scheduler is installed, which depend on it.
+- **Check** — `debug:bundles` shows `lock` as `listed` and `active`.
+
 ## Kernel / bundle
 
 With [xtr-dependency-injection](../xtr-dependency-injection), list the bundle and name the
