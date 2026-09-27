@@ -290,7 +290,7 @@ Everything adding this package to an application on
   function returning `LockConfig` — see [Kernel / bundle](#kernel--bundle).
 - **Environment** — nothing required. A DSN given as `env(...)` must be set when the
   application boots: booting checks every resource.
-- **Ignore** — nothing: lock files live under `kernel.share_dir`, outside the project.
+- **Ignore** — `var/`: lock files live under `kernel.share_dir`, `var/share` in the project.
 - **Remove** — drop the `BUNDLES` entry, delete `<app>/config/lock.py`, then
   `uv remove xtr-lock` — unless xtr-cache or xtr-scheduler is installed, which depend on it.
 - **Check** — `debug:bundles` shows `lock` as `listed` and `active`.
@@ -345,7 +345,7 @@ class ReportBuilder:
 
 | Store entry | Store |
 |---|---|
-| `"flock"` | `FlockStore` in `lock` under `kernel.share_dir` — `<temporary directory>/xtr/<digest of the project directory>` — so two projects on one machine never share lock files |
+| `"flock"` | `FlockStore` in `lock` under `kernel.share_dir` — `var/share` in the project — so two projects on one machine never share lock files |
 | any DSN in the table above, or `env(...)` | what `StoreFactory` builds; a Redis connection opened from a DSN is closed with the container |
 | `Reference(Redis, "locks")` (from `xtr_dependency_injection`) | a `RedisStore`, without a prefix, on the client the container provides under that type and qualifier; the application keeps closing it |
 

@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
-import tempfile
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from redis.asyncio import Redis
 from xtr_dependency_injection import Kernel
 from xtr_dependency_injection.exception import ServiceResolutionError
+from xtr_dependency_injection.kernel import kernel as kernel_module
 from xtr_dependency_injection.testing import assert_zero_config
 from xtr_logging_contracts import LoggerInterface
 
@@ -29,6 +27,8 @@ from xtr_lock import (
 from xtr_lock.bundle import LOCK_CHANNEL, LockBundle
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from xtr_dependency_injection import BootedKernel
 
 pytestmark = pytest.mark.anyio
@@ -65,16 +65,20 @@ async def test_the_default_factory_is_provided_with_and_without_a_qualifier(
     assert unqualified is qualified
 
 
-async def test_flock_is_the_projects_own_directory_under_the_temporary_one(
-    tmp_path: Path,
+async def test_flock_is_lock_under_the_share_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    def share_dir(project_dir: Path) -> Path:
+        del project_dir
+        return tmp_path / "share"
+
+    monkeypatch.setattr(kernel_module, "share_dir", share_dir)
+
     async with await _kernel(tmp_path).boot() as booted:
         store = await _store(booted, "default")
-        project_dir = str(booted.container.get_parameter("kernel.project_dir"))
 
-    digest = hashlib.sha256(project_dir.encode()).hexdigest()[:16]
     assert isinstance(store, FlockStore)
-    assert store.lock_path == Path(tempfile.gettempdir()) / "xtr" / digest / "lock"
+    assert store.lock_path == tmp_path / "share" / "lock"
 
 
 async def test_each_resource_gets_the_store_it_names(tmp_path: Path) -> None:

@@ -34,8 +34,8 @@ class LockConfig:
 
     A store is one of:
 
-    - ``"flock"`` — files in ``lock`` under the kernel's ``share_dir``, a
-      directory of the system's temporary one set aside for this project;
+    - ``"flock"`` — files in ``lock`` under the kernel's ``share_dir``,
+      ``var/share`` in the project;
     - any DSN :meth:`~xtr_lock.store.StoreFactory.create_store` reads —
       ``"flock:///var/lock/app"``, ``"in-memory"``, ``"null"``,
       ``"redis://host:6379"`` and the like — including ``env(...)``;
