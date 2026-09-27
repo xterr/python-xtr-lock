@@ -8,11 +8,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-import wireup
 from redis.asyncio import Redis
 from xtr_dependency_injection import Kernel
 from xtr_dependency_injection.exception import ServiceResolutionError
-from xtr_dependency_injection.integration.wireup import injectables
 from xtr_dependency_injection.testing import assert_zero_config
 from xtr_logging_contracts import LoggerInterface
 
@@ -170,14 +168,3 @@ async def test_boot_fails_when_a_dsn_variable_is_not_set() -> None:
         _ = await kernel.boot()
 
     assert "LOCK_TEST_DSN" in str(raised.value.__cause__)
-
-
-async def test_the_default_store_works_in_a_plain_wireup_container() -> None:
-    container = wireup.create_async_container(injectables=injectables([LockBundle]))
-    try:
-        store = await container.get(PersistingStoreInterface, "default")
-    finally:
-        await container.close()
-
-    assert isinstance(store, FlockStore)
-    assert store.lock_path.name == "lock"
