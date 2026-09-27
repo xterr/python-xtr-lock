@@ -11,6 +11,7 @@ import re
 import secrets
 import sys
 import tempfile
+import weakref
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast, final
@@ -52,6 +53,14 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
     lock when the descriptor is closed — on :meth:`delete`, or when the
     process ends, however it ends — so a crashed holder never leaves a lock
     behind. Nothing else expires: a lifetime given to the lock is ignored.
+
+    A key dropped while it holds a lock has its descriptor closed when it is
+    collected, which lets go of the lock: the descriptor is the store's to
+    tidy, and a worker that loses keys must not run out of descriptors. That
+    is no release to rely on — release the lock.
+
+    What a key holds is kept under this store, not under the class: two
+    stores on two directories are two locks, and one key may hold both.
 
     Waiting for a lock tries again without blocking, sooner at first and
     then every tenth of a second, sleeping on the event loop in between: no
@@ -131,27 +140,35 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
 
     @override
     async def put_off_expiration(self, key: Key, ttl: float) -> None:
-        """Do nothing: a file lock is held until it is released."""
+        """Check ``key`` still holds the lock; a file lock is held until it is released.
+
+        Raises:
+            LockConflictedError: When ``key`` does not hold the lock.
+        """
+        if not await self.exists(key):
+            raise LockConflictedError(str(key))
 
     @override
     async def delete(self, key: Key) -> None:
         """Let go of the lock and close the descriptor; a key holding nothing is fine."""
-        if not key.has_state(FlockStore):
+        held = _held(key, self)
+        if held is None:
             return
 
-        _, descriptor = _held(key)
+        _, descriptor, collected = held
         try:
             # Closing lets go on its own; unlocking first only says so sooner.
             with suppress(OSError):
                 fcntl.flock(descriptor, fcntl.LOCK_UN | fcntl.LOCK_NB)
+            _ = collected.detach()
             os.close(descriptor)
         finally:
-            key.remove_state(FlockStore)
+            key.remove_state(self)
 
     @override
     async def exists(self, key: Key) -> bool:
         """Tell whether ``key`` holds a descriptor with the lock on it."""
-        return key.has_state(FlockStore)
+        return key.has_state(self)
 
     def file_for(self, key: Key) -> Path:
         """Return the file that holds the lock for ``key``'s resource.
@@ -167,14 +184,13 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
         return self._lock_path / f"xtr.{readable}.{digest[:_DIGEST_LENGTH].replace('/', '_')}.lock"
 
     async def _lock(self, key: Key, *, read: bool, blocking: bool) -> None:
-        descriptor: int | None = None
-        if key.has_state(FlockStore):
-            held_for_reading, descriptor = _held(key)
+        held = _held(key, self)
+        if held is None:
+            descriptor, collected = _open(self.file_for(key)), None
+        else:
+            held_for_reading, descriptor, collected = held
             if held_for_reading == read:
                 return
-
-        if descriptor is None:
-            descriptor = _open(self.file_for(key))
 
         operation = fcntl.LOCK_SH if read else fcntl.LOCK_EX
         try:
@@ -183,21 +199,23 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
             else:
                 fcntl.flock(descriptor, operation | fcntl.LOCK_NB)
         except asyncio.CancelledError:
-            _close(descriptor)
-            key.remove_state(FlockStore)
+            _close(descriptor, collected)
+            key.remove_state(self)
             raise
         except BlockingIOError:
             # Switching between reading and writing is not atomic: the lock
             # held before may already be gone, so nothing is kept.
-            _close(descriptor)
-            key.remove_state(FlockStore)
+            _close(descriptor, collected)
+            key.remove_state(self)
             raise LockConflictedError(str(key)) from None
         except OSError as error:
-            _close(descriptor)
-            key.remove_state(FlockStore)
+            _close(descriptor, collected)
+            key.remove_state(self)
             raise LockStorageError(f"cannot lock {self.file_for(key)}: {error}") from error
 
-        key.set_state(FlockStore, (read, descriptor))
+        if collected is None:
+            collected = weakref.finalize(key, _close, descriptor)
+        key.set_state(self, (read, descriptor, collected))
         key.mark_unserializable()
 
     async def _wait(self, descriptor: int, operation: int) -> None:
@@ -223,9 +241,15 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
         return f"{type(self).__name__}({str(self._lock_path)!r})"
 
 
-def _held(key: Key) -> tuple[bool, int]:
-    """Return how ``key`` holds its lock — for reading or not — and on which descriptor."""
-    return cast("tuple[bool, int]", key.get_state(FlockStore))
+def _held(key: Key, store: FlockStore) -> tuple[bool, int, weakref.finalize[..., None]] | None:
+    """Return how ``key`` holds ``store``'s lock — for reading or not — on which descriptor.
+
+    With it comes what closes the descriptor should the key be collected;
+    ``None`` when ``key`` holds nothing there.
+    """
+    if not key.has_state(store):
+        return None
+    return cast("tuple[bool, int, weakref.finalize[..., None]]", key.get_state(store))
 
 
 def _open(path: Path) -> int:
@@ -268,6 +292,13 @@ def _open_existing(path: Path) -> int:
         return os.open(path, os.O_RDONLY | os.O_CLOEXEC)
 
 
-def _close(descriptor: int) -> None:
+def _close(descriptor: int, collected: weakref.finalize[..., None] | None = None) -> None:
+    """Close ``descriptor``, first disarming what would close it again once its key is collected.
+
+    Disarmed first because a closed descriptor's number is soon reused: closing
+    it a second time would close someone else's file.
+    """
+    if collected is not None:
+        _ = collected.detach()
     with suppress(OSError):
         os.close(descriptor)

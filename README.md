@@ -75,7 +75,9 @@ async with factory.create_lock("invoice:42"):
 ```
 
 Every method that touches the store is awaited. A lock is **never released because it was
-garbage-collected**: use `async with`, or release it yourself.
+garbage-collected**: use `async with`, or release it yourself. The one exception is tidying,
+not releasing: a `FlockStore` closes the file a dropped key still held open, which lets go of
+that lock, so a worker that loses keys does not run out of file descriptors.
 
 ### Giving up after a while
 
@@ -268,7 +270,9 @@ Implement `PersistingStoreInterface` (`save`, `delete`, `exists`, `put_off_expir
 `BlockingStoreInterface` (`wait_and_save`), `SharedLockStoreInterface` (`save_read`) or
 `BlockingSharedLockStoreInterface` (`wait_and_save_read`) for what the store can also do; a
 `Lock` looks for them and uses the best one. Keep per-holder state on the key under your store's
-class (`key.set_state(MyStore, token)`), shorten the key's lifetime with `key.reduce_lifetime`
+class (`key.set_state(MyStore, token)`) when it only names the holder, and under the store
+itself (`key.set_state(self, handle)`) when it belongs to one store — an open file, a
+connection — so two stores of one class in a `CombinedStore` are two locks, not one. Shorten the key's lifetime with `key.reduce_lifetime`
 when the store sets one, and derive from `ExpiringStoreMixin` to have `_check_not_expired(key)`
 take back a lock that expired while being stored.
 

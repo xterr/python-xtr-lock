@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import errno
+import gc
 import hashlib
 import os
 import stat
@@ -180,7 +181,7 @@ async def test_delete_closes_the_descriptor(tmp_path: Path) -> None:
     store = FlockStore(tmp_path)
     key = Key("r")
     await store.save(key)
-    _, descriptor = cast("tuple[bool, int]", key.get_state(FlockStore))
+    _, descriptor, _ = cast("tuple[bool, int, object]", key.get_state(store))
 
     await store.delete(key)
 
@@ -302,3 +303,34 @@ async def test_waiting_backs_off_to_a_tenth_of_a_second(tmp_path: Path) -> None:
     for slept, base in zip(clock.slept, [0.01, 0.02, 0.04, 0.08, 0.1, 0.1], strict=False):
         assert base <= slept <= base * 1.1
     await store.delete(waiter)
+
+
+async def test_two_stores_on_two_directories_are_two_locks(tmp_path: Path) -> None:
+    first, second = FlockStore(tmp_path / "a"), FlockStore(tmp_path / "b")
+    key = Key("r")
+
+    await first.save(key)
+    await second.save(key)
+
+    assert await first.exists(key)
+    assert await second.exists(key)
+    with pytest.raises(LockConflictedError):
+        await second.save(Key("r"))
+    await first.delete(key)
+    assert await second.exists(key)
+    await second.delete(key)
+
+
+async def test_a_key_collected_while_holding_lets_go_of_the_lock(tmp_path: Path) -> None:
+    store = FlockStore(tmp_path)
+    await store.save(Key("r"))
+    _ = gc.collect()
+
+    await store.save(Key("r"))
+
+
+async def test_putting_off_the_expiration_of_a_lock_not_held_is_a_conflict(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(LockConflictedError):
+        await FlockStore(tmp_path).put_off_expiration(Key("r"), 10)

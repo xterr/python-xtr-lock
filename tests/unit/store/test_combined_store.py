@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import final
+from typing import TYPE_CHECKING, final
 
 import pytest
 from typing_extensions import override
@@ -13,6 +13,7 @@ from tests.support.store_conformance import AbstractStoreTests, SharedLockStoreT
 from xtr_lock import (
     CombinedStore,
     ConsensusStrategy,
+    FlockStore,
     InMemoryStore,
     InvalidArgumentError,
     Key,
@@ -22,6 +23,9 @@ from xtr_lock import (
     StrategyInterface,
     UnanimousStrategy,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.anyio
 
@@ -333,3 +337,16 @@ async def test_the_deadline_is_counted_monotonically_by_default() -> None:
     ((_, ttl),) = second.called("put_off_expiration")
     assert isinstance(ttl, float)
     assert 9 < ttl <= 10
+
+
+async def test_two_file_stores_each_hold_the_lock(tmp_path: Path) -> None:
+    """Two stores of one class are two votes only if each really holds the lock."""
+    store = CombinedStore(
+        [FlockStore(tmp_path / "a"), FlockStore(tmp_path / "b")], UnanimousStrategy()
+    )
+    holder = Key("r")
+    await store.save(holder)
+
+    with pytest.raises(LockConflictedError):
+        await FlockStore(tmp_path / "b").save(Key("r"))
+    await store.delete(holder)
