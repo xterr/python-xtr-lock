@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import base64
-import secrets
 from typing import TYPE_CHECKING, final
 
 from typing_extensions import override
 
 from xtr_lock.exception import LockConflictedError
 from xtr_lock.shared_lock_store_interface import SharedLockStoreInterface
+
+from ._holder_token import holder_token
 
 if TYPE_CHECKING:
     from xtr_lock.key import Key
@@ -123,8 +123,4 @@ class InMemoryStore(SharedLockStoreInterface):
 
 
 def _unique_token(key: Key) -> str:
-    """Return the token that identifies ``key`` as a holder, making one the first time."""
-    if not key.has_state(InMemoryStore):
-        key.set_state(InMemoryStore, base64.b64encode(secrets.token_bytes(32)).decode("ascii"))
-
-    return str(key.get_state(InMemoryStore))
+    return holder_token(key, InMemoryStore)

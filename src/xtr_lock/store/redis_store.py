@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import math
-import secrets
 from typing import TYPE_CHECKING, ClassVar, Final, Protocol, cast, final
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -19,6 +17,7 @@ from xtr_lock.exception import (
 )
 from xtr_lock.shared_lock_store_interface import SharedLockStoreInterface
 
+from ._holder_token import holder_token
 from .expiring_store_mixin import ExpiringStoreMixin
 from .redis_connection import create_redis_client
 
@@ -475,14 +474,7 @@ def _split_prefix(dsn: str) -> tuple[str, str]:
 
 
 def _unique_token(key: Key) -> str:
-    """Return the token that identifies ``key`` as a holder, making one the first time.
-
-    The write marker is never a token, whatever a key was given.
-    """
-    if not key.has_state(RedisStore) or key.get_state(RedisStore) == _WRITE_MEMBER:
-        key.set_state(RedisStore, base64.b64encode(secrets.token_bytes(32)).decode("ascii"))
-
-    return str(key.get_state(RedisStore))
+    return holder_token(key, RedisStore, reserved=_WRITE_MEMBER)
 
 
 def _milliseconds(seconds: float) -> int:

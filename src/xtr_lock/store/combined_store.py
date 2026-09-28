@@ -15,7 +15,7 @@ from xtr_lock.shared_lock_store_interface import SharedLockStoreInterface
 from .expiring_store_mixin import ExpiringStoreMixin
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Awaitable, Callable, Iterable
 
     from xtr_clock import ClockInterface
 
@@ -89,39 +89,30 @@ class CombinedStore(LoggerAware, SharedLockStoreInterface, ExpiringStoreMixin):
     @override
     async def save(self, key: Key) -> None:
         """Take the lock for writing in every store, until the strategy is met or cannot be."""
-        success_count = 0
-        failure_count = 0
-        stores_count = len(self._stores)
-
-        for store in self._stores:
-            try:
-                await store.save(key)
-                success_count += 1
-            except Exception as error:  # noqa: BLE001 — a store failing for any reason is a vote against, and is logged.
-                self.logger.debug(
-                    'One store failed to save the "{resource}" lock.',
-                    {"resource": str(key), "store": store, EXCEPTION_KEY: error},
-                )
-                failure_count += 1
-
-            if not self._strategy.can_be_met(failure_count, stores_count):
-                break
-
-        await self._settle(key, success_count, failure_count)
+        await self._take(key, lambda store: store.save(key))
 
     @override
     async def save_read(self, key: Key) -> None:
         """Take the lock for reading in every store, for writing where a store cannot share."""
+
+        def save_read(store: PersistingStoreInterface) -> Awaitable[None]:
+            if isinstance(store, SharedLockStoreInterface):
+                return store.save_read(key)
+            return store.save(key)
+
+        await self._take(key, save_read)
+
+    async def _take(
+        self, key: Key, save: Callable[[PersistingStoreInterface], Awaitable[None]]
+    ) -> None:
+        """Ask each store to ``save``, until the strategy is met or cannot be, then settle."""
         success_count = 0
         failure_count = 0
         stores_count = len(self._stores)
 
         for store in self._stores:
             try:
-                if isinstance(store, SharedLockStoreInterface):
-                    await store.save_read(key)
-                else:
-                    await store.save(key)
+                await save(store)
                 success_count += 1
             except Exception as error:  # noqa: BLE001 — a store failing for any reason is a vote against, and is logged.
                 self.logger.debug(
