@@ -58,7 +58,8 @@ class StoreFactory:
         if connection == "flock":
             return FlockStore()
         if connection.startswith(_FLOCK_PREFIX):
-            return FlockStore(connection.removeprefix(_FLOCK_PREFIX))
+            # ``flock://`` with no path means the default directory, not the working one.
+            return FlockStore(connection.removeprefix(_FLOCK_PREFIX) or None)
         if is_redis_dsn(connection):
             return RedisStore.from_url(connection)
         if connection == "in-memory":

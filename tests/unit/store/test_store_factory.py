@@ -42,6 +42,13 @@ def test_flock_with_a_path_uses_that_directory(tmp_path: Path) -> None:
     assert store.lock_path == Path(f"{tmp_path}/locks")
 
 
+def test_flock_with_no_path_uses_the_default_directory_not_the_working_one() -> None:
+    store = StoreFactory.create_store("flock://")
+
+    assert isinstance(store, FlockStore)
+    assert store.lock_path == FlockStore().lock_path
+
+
 @pytest.mark.parametrize(
     "dsn",
     [
