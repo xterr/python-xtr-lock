@@ -292,7 +292,8 @@ take back a lock that expired while being stored.
 Everything adding this package to an application on
 [xtr-dependency-injection](../xtr-dependency-injection) takes — and, read backwards, what removing it undoes.
 
-- **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines.
+- **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines, and `logging`
+  for the lock channel.
 - **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
   `xtr_lock.bundle`.
 - **Brings along** — the logging bundle, when xtr-logging is installed.
