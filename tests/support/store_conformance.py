@@ -18,6 +18,7 @@ from xtr_lock import Key, LockConflictedError, LockExpiredError, UnserializableK
 
 if TYPE_CHECKING:
     from xtr_lock import (
+        BlockingSharedLockStoreInterface,
         BlockingStoreInterface,
         PersistingStoreInterface,
         SharedLockStoreInterface,
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AbstractStoreTests",
+    "BlockingSharedLockStoreTests",
     "BlockingStoreTests",
     "ExpiringStoreTests",
     "SharedLockStoreTests",
@@ -245,6 +247,43 @@ class BlockingStoreTests:
         await asyncio.wait_for(_save_eventually(store, latecomer), timeout=5)
         assert await store.exists(latecomer)
         await store.delete(latecomer)
+
+
+class BlockingSharedLockStoreTests:
+    """Waiting to read while a writer holds the lock."""
+
+    async def test_wait_and_save_read_waits_for_the_writer(
+        self,
+        store: BlockingSharedLockStoreInterface,
+        resource: str,
+    ) -> None:
+        writer = Key(resource)
+        reader = Key(resource)
+        await store.save(writer)
+
+        waiting = asyncio.create_task(store.wait_and_save_read(reader))
+        await asyncio.sleep(_SETTLE)
+        assert not waiting.done()
+
+        await store.delete(writer)
+        await asyncio.wait_for(waiting, timeout=5)
+
+        assert await store.exists(reader)
+        await store.delete(reader)
+
+    async def test_readers_do_not_wait_for_each_other(
+        self,
+        store: BlockingSharedLockStoreInterface,
+        resource: str,
+    ) -> None:
+        first, second = Key(resource), Key(resource)
+        await store.save_read(first)
+
+        await asyncio.wait_for(store.wait_and_save_read(second), timeout=5)
+
+        assert await store.exists(second)
+        await store.delete(first)
+        await store.delete(second)
 
 
 class SharedLockStoreTests:

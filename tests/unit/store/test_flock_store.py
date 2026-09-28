@@ -15,6 +15,7 @@ from xtr_clock import MockClock
 
 from tests.support.store_conformance import (
     AbstractStoreTests,
+    BlockingSharedLockStoreTests,
     BlockingStoreTests,
     SharedLockStoreTests,
     UnserializableKeyTests,
@@ -44,6 +45,7 @@ _ROOT = os.geteuid() == 0 if hasattr(os, "geteuid") else False
 class TestFlockStore(
     AbstractStoreTests,
     BlockingStoreTests,
+    BlockingSharedLockStoreTests,
     SharedLockStoreTests,
     UnserializableKeyTests,
 ):
