@@ -196,15 +196,23 @@ of each other.
 
 ### `FlockStore`
 
-One file per resource under a directory (the system's temporary directory by default), locked
+One file per resource under a directory, locked
 with the operating system's advisory file locks. Every key opens its own descriptor, so two keys
 conflict whether they are in two processes or in one. Closing the descriptor lets go, so a
 crashed process never leaves a lock behind.
 
 - The file is named `xtr.<up to 50 characters of the resource>.<digest>.lock`, with anything
   outside `A-Za-z0-9._-` folded to `-`. The digest keeps resources that fold alike apart.
+- Without a directory, the files go in `xtr-lock-<uid>` under the system's temporary directory,
+  made for this user alone (`0700`) and refused when another user owns it — in the shared
+  temporary directory anyone could otherwise create or hold a lock file first. Such locks bind
+  only one user's processes.
 - New lock files are created readable and writable by everyone, whatever the umask, so
-  processes run as different users can share them.
+  processes run as different users can share a directory they are all given. A lock file is
+  never opened through a symbolic link.
+- A lock file is never removed: releasing closes it, and another process may be about to lock
+  it. A store locking one file per entity (`invoice:<id>`) accumulates them; sweep old ones
+  when nothing runs, e.g. `find <dir> -name 'xtr.*.lock' -mtime +7 -delete`.
 - A blocking wait tries again without blocking — after 10 ms, then twice as long each time, up
   to every 100 ms — sleeping on the event loop in between. No thread is parked in the system
   call, a cancelled wait holds nothing, and waiters are not served in arrival order (the

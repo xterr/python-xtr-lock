@@ -9,6 +9,7 @@ import importlib.util
 import os
 import re
 import secrets
+import stat
 import sys
 import tempfile
 import weakref
@@ -37,6 +38,10 @@ _UNSAFE_CHARACTERS: Final = re.compile(r"[^A-Za-z0-9._-]+")
 _NAME_LENGTH: Final = 50
 _DIGEST_LENGTH: Final = 7
 _FILE_MODE: Final = 0o666
+_PRIVATE_MODE: Final = 0o700
+"""The default directory's mode: in the shared temporary directory, only its owner may enter."""
+# A lock file is never opened through a symbolic link planted in its place.
+_OPEN_FLAGS: Final = os.O_CLOEXEC | getattr(os, "O_NOFOLLOW", 0)
 _HAS_FILE_LOCKS: Final = importlib.util.find_spec("fcntl") is not None
 _FIRST_RETRY: Final = 0.01
 _LAST_RETRY: Final = 0.1
@@ -71,6 +76,13 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
     The locks are advisory and local: they bind only processes that use this
     store on the same machine, and a directory on a network file system may
     not honour them at all. POSIX only.
+
+    Without a directory of its own, the store keeps its files in one made for
+    this user alone under the temporary directory, where anyone could
+    otherwise create or hold a lock file first; so it binds only processes of
+    this user. Give a directory the processes share for locks that bind
+    several users — a file is opened for everyone, and never through a
+    symbolic link.
     """
 
     __slots__ = ("_clock", "_lock_path")
@@ -87,19 +99,20 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
         """Keep lock files in ``lock_path``, created when missing.
 
         Args:
-            lock_path: The directory for the lock files. ``None`` uses the
-                system's temporary directory.
+            lock_path: The directory for the lock files. ``None`` uses one
+                private to this user in the system's temporary directory.
             clock: What a wait sleeps on between attempts. ``None`` sleeps
                 on the clock in force.
 
         Raises:
             InvalidArgumentError: When the directory cannot be created or
-                written to, or the platform has no file locks.
+                written to, the default one belongs to another user, or the
+                platform has no file locks.
         """
         if not _HAS_FILE_LOCKS:  # pragma: no cover — the suite runs on POSIX.
             raise InvalidArgumentError("file locks are not available on Windows")
 
-        path = Path(lock_path) if lock_path is not None else Path(tempfile.gettempdir())
+        path = Path(lock_path) if lock_path is not None else _private_directory()
         if not path.is_dir():
             with suppress(OSError):
                 path.mkdir(mode=0o777, parents=True, exist_ok=True)
@@ -268,9 +281,7 @@ def _open(path: Path) -> int:
             pass
 
         try:
-            descriptor = os.open(
-                path, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC, _FILE_MODE
-            )
+            descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL | _OPEN_FLAGS, _FILE_MODE)
         except FileExistsError:
             # Created by someone else between the two calls.
             return _open_existing(path)
@@ -287,9 +298,34 @@ def _open(path: Path) -> int:
 
 def _open_existing(path: Path) -> int:
     try:
-        return os.open(path, os.O_RDWR | os.O_CLOEXEC)
+        return os.open(path, os.O_RDWR | _OPEN_FLAGS)
     except PermissionError:
-        return os.open(path, os.O_RDONLY | os.O_CLOEXEC)
+        return os.open(path, os.O_RDONLY | _OPEN_FLAGS)
+
+
+def _private_directory() -> Path:
+    """Return this user's lock directory in the temporary one, made for them alone.
+
+    Raises:
+        InvalidArgumentError: When it cannot be made, or is not a directory
+            of this user.
+    """
+    owner = os.getuid() if hasattr(os, "getuid") else None
+    path = Path(tempfile.gettempdir()) / f"xtr-lock-{owner if owner is not None else 'user'}"
+    try:
+        path.mkdir(mode=_PRIVATE_MODE, exist_ok=True)
+        status = path.lstat()
+        if not stat.S_ISDIR(status.st_mode) or (owner is not None and status.st_uid != owner):
+            raise InvalidArgumentError(
+                f'Refusing the FlockStore directory "{path}": it is not a directory of this user.'
+            )
+        if stat.S_IMODE(status.st_mode) != _PRIVATE_MODE:
+            path.chmod(_PRIVATE_MODE)
+    except OSError as error:
+        raise InvalidArgumentError(
+            f'The FlockStore directory "{path}" cannot be made private: {error}'
+        ) from error
+    return path
 
 
 def _close(descriptor: int, collected: weakref.finalize[..., None] | None = None) -> None:

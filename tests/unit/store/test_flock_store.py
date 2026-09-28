@@ -7,6 +7,7 @@ import gc
 import hashlib
 import os
 import stat
+import tempfile
 from typing import TYPE_CHECKING, Self, cast, final
 
 import pytest
@@ -87,10 +88,46 @@ def test_construct_with_subdir(tmp_path: Path) -> None:
     assert store.lock_path == directory
 
 
-def test_it_defaults_to_the_temporary_directory() -> None:
-    import tempfile  # noqa: PLC0415 — read here so the test says what it compares against.
+def test_it_defaults_to_a_directory_of_this_user_alone_in_the_temporary_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
 
-    assert str(FlockStore().lock_path) == tempfile.gettempdir()
+    path = FlockStore().lock_path
+
+    assert path.parent == tmp_path
+    assert stat.S_IMODE(path.stat().st_mode) == 0o700
+
+
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="file ownership is POSIX")
+def test_a_default_directory_of_another_user_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    _ = FlockStore()
+    monkeypatch.setattr(os, "getuid", lambda: tmp_path.stat().st_uid + 1)
+    (tmp_path / f"xtr-lock-{tmp_path.stat().st_uid + 1}").mkdir()
+    (tmp_path / f"xtr-lock-{tmp_path.stat().st_uid + 1}").chmod(0o700)
+
+    with pytest.raises(InvalidArgumentError, match="not a directory of this user"):
+        _ = FlockStore()
+
+
+async def test_a_lock_file_replaced_by_a_symbolic_link_is_not_followed(tmp_path: Path) -> None:
+    store = FlockStore(tmp_path / "locks")
+    key = Key("invoice")
+    await store.save(key)
+    await store.delete(key)
+    (lock_file,) = (tmp_path / "locks").iterdir()
+    target = tmp_path / "elsewhere"
+    _ = target.write_text("untouched", encoding="utf-8")
+    lock_file.unlink()
+    lock_file.symlink_to(target)
+
+    with pytest.raises(LockStorageError):
+        await store.save(Key("invoice"))
+
+    assert target.read_text(encoding="utf-8") == "untouched"
 
 
 async def test_save_sanitize_name(tmp_path: Path) -> None:
