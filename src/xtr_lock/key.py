@@ -40,6 +40,7 @@ class Key:
     # weak reference to the key, so the key still goes away with its last user.
     # The interpreter fills __weakref__ itself; there is nothing to initialise.
     __slots__ = (
+        # The interpreter fills it.
         "__weakref__",  # pyright: ignore[reportUninitializedInstanceVariable]
         "_clock",
         "_expiring_time",
