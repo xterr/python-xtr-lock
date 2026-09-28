@@ -247,6 +247,9 @@ store = RedisStore.from_url("redis://localhost:6379/0?prefix=app:locks:")
 - The Redis key is the resource after `prefix` (empty by default). Set one when the database is
   shared with anything else; in a DSN, the `prefix` option is the store's and never reaches the
   client.
+- A client built from a DSN gives up on a server that has not connected or answered within 5
+  seconds, raising `LockStorageError` rather than waiting forever; `?socket_timeout=30` and
+  `?socket_connect_timeout=2` in the DSN change that.
 - One server — standalone Redis or Valkey. Not a cluster, not Sentinel.
 
 ### `CombinedStore`

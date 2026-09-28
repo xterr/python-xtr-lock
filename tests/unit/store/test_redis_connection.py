@@ -100,3 +100,23 @@ def test_every_scheme_maps_to_one_the_client_reads() -> None:
 
 def _no_spec(name: str) -> None:
     del name
+
+
+async def test_a_client_gives_up_on_a_silent_server_after_the_default_timeout() -> None:
+    client = create_redis_client("redis://localhost:6379", missing=MISSING)
+
+    options = client.connection_pool.connection_kwargs
+
+    assert (options["socket_connect_timeout"], options["socket_timeout"]) == (5.0, 5.0)
+    await client.aclose()
+
+
+async def test_the_dsn_may_set_its_own_timeouts() -> None:
+    client = create_redis_client(
+        "redis://localhost:6379?socket_timeout=30&socket_connect_timeout=2", missing=MISSING
+    )
+
+    options = client.connection_pool.connection_kwargs
+
+    assert (options["socket_connect_timeout"], options["socket_timeout"]) == (2.0, 30.0)
+    await client.aclose()

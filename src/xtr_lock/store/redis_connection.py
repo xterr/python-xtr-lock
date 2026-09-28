@@ -4,6 +4,11 @@ Lock stores and cache pools reach Redis the same way, so the DSN rules live
 here once: ``redis://`` and ``rediss://``, a ``unix://`` socket, and
 ``valkey://`` / ``valkeys://`` read as the first two. A client is made to
 connect on first use, so building one never touches the network.
+
+A client gives up on a server that does not answer within
+:data:`DEFAULT_TIMEOUT` seconds — to connect, or to reply — rather than wait
+forever; ``?socket_timeout=`` and ``?socket_connect_timeout=`` in the DSN say
+otherwise.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ if TYPE_CHECKING:
     from redis.asyncio import Redis
 
 __all__ = [
+    "DEFAULT_TIMEOUT",
     "REDIS_SCHEMES",
     "create_redis_client",
     "is_redis_client",
@@ -35,6 +41,9 @@ REDIS_SCHEMES: Final[Mapping[str, str]] = {
     "unix": "unix",
 }
 """Each accepted scheme, and the one the client is given for it."""
+
+DEFAULT_TIMEOUT: Final = 5.0
+"""Seconds a client waits to connect, or for a reply, unless the DSN says otherwise."""
 
 
 def is_redis_dsn(dsn: str) -> bool:
@@ -73,8 +82,12 @@ def create_redis_client(dsn: str, *, missing: str) -> Redis:
     except ImportError as error:
         raise InvalidArgumentError(missing) from error
 
-    # Only the keyword arguments are untyped, and none are passed.
-    return Redis.from_url(f"{target}:{rest}")  # pyright: ignore[reportUnknownMemberType]
+    # The keyword arguments are untyped. The DSN's query wins over them.
+    return Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
+        f"{target}:{rest}",
+        socket_connect_timeout=DEFAULT_TIMEOUT,
+        socket_timeout=DEFAULT_TIMEOUT,
+    )
 
 
 def is_redis_client(connection: object) -> TypeGuard[Redis]:
