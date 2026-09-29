@@ -398,12 +398,8 @@ uv sync
 uv run ruff check && uv run ruff format --check && uv run basedpyright && uv run ty check && uv run pytest
 ```
 
-The Redis tests run against a real server when `REDIS_DSN` is set, and are skipped otherwise.
-They use resources of their own and never flush the database:
-
-```sh
-REDIS_DSN=redis://localhost:6379/15 uv run pytest
-```
+No test needs a server: the Redis store's scripts run in this process, on
+[fakeredis](https://github.com/cunla/fakeredis-py) with its Lua extra.
 
 ## License
 
