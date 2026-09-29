@@ -1,4 +1,4 @@
-"""The combined store over real Redis stores: lifetimes are enforced, and a quorum decides."""
+"""The combined store over Redis stores running their scripts: lifetimes hold, a quorum decides."""
 
 from __future__ import annotations
 

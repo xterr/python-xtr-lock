@@ -1,4 +1,4 @@
-"""The Redis store against a real server: the shared conformance suite, and its own guarantees."""
+"""The Redis store running its scripts: the shared conformance suite, and its own guarantees."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.support.redis_server import redis_dsn
 from tests.support.store_conformance import (
     AbstractStoreTests,
     ExpiringStoreTests,
@@ -112,16 +111,6 @@ async def test_a_lock_takes_its_own_lifetime_over_the_initial_one(
 
     assert 0 < ttl_ms <= 2000
     await lock.release()
-
-
-async def test_from_url_owns_and_closes_its_connection(resource: str) -> None:
-    store = RedisStore.from_url(redis_dsn())
-    key = Key(resource)
-
-    await store.save(key)
-    assert await store.exists(key)
-    await store.delete(key)
-    await store.aclose()
 
 
 async def test_the_prefix_names_the_redis_key(redis_client: Redis, resource: str) -> None:

@@ -55,6 +55,7 @@ dev = [
     "xtr-dependency-injection>=1.0,<2",
     "xtr-logging>=1.0,<2",
     "xtr-service-contracts>=1.0,<2",
+    "fakeredis[lua]>=2.38.0",
 ]
 
 [build-system]
