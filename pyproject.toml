@@ -4,7 +4,7 @@ version = "1.4.0"
 description = "Exclusive and shared locks around resources, held in memory, in files, in Redis, or across several stores at once."
 readme = "README.md"
 authors = [
-    { name = "Razvan Ceana", email = "razvan@ceana.ro" }
+    { name = "Xterr", email = "me@xterr.dev" }
 ]
 requires-python = ">=3.11"
 license = "MIT"
