@@ -10,6 +10,7 @@ from .null_store import NullStore
 from .redis_connection import (
     REDIS_SCHEMES,
     create_redis_client,
+    describe_connection_scheme,
     is_redis_client,
     is_redis_dsn,
     redis_installed,
@@ -27,6 +28,7 @@ __all__ = [
     "RedisStore",
     "StoreFactory",
     "create_redis_client",
+    "describe_connection_scheme",
     "is_redis_client",
     "is_redis_dsn",
     "redis_installed",

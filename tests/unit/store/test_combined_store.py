@@ -283,7 +283,7 @@ def _granted(script: str, arguments: tuple[object, ...]) -> object:
     return 1
 
 
-async def test_aclose_closes_every_store_that_can_be_closed() -> None:
+async def test_close_closes_every_store_that_can_be_closed() -> None:
     owned, lent = FakeRedis(_granted), FakeRedis(_granted)
     owning = RedisStore(owned.as_client())
     owning._owns_connection = True
@@ -292,7 +292,7 @@ async def test_aclose_closes_every_store_that_can_be_closed() -> None:
         ConsensusStrategy(),
     )
 
-    await store.aclose()
+    await store.close()
 
     assert owned.closed
     assert not lent.closed
@@ -305,13 +305,13 @@ class _FailingToClose(ScriptedStore):
         self.error = error
         self.closed = False
 
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         self.closed = True
         if self.error is not None:
             raise self.error
 
 
-async def test_aclose_asks_every_store_and_raises_the_failures_together() -> None:
+async def test_close_asks_every_store_and_raises_the_failures_together() -> None:
     first, second, third = (
         _FailingToClose(RuntimeError("a")),
         _FailingToClose(),
@@ -319,7 +319,7 @@ async def test_aclose_asks_every_store_and_raises_the_failures_together() -> Non
     )
 
     with pytest.raises(ExceptionGroup) as raised:
-        await CombinedStore([first, second, third], ConsensusStrategy()).aclose()
+        await CombinedStore([first, second, third], ConsensusStrategy()).close()
 
     assert [first.closed, second.closed, third.closed] == [True, True, True]
     assert [str(error) for error in raised.value.exceptions] == ["a", "c"]

@@ -9,7 +9,12 @@ from xtr_lock.exception import InvalidArgumentError
 from .flock_store import FlockStore
 from .in_memory_store import InMemoryStore
 from .null_store import NullStore
-from .redis_connection import is_redis_client, is_redis_dsn, redis_installed
+from .redis_connection import (
+    describe_connection_scheme,
+    is_redis_client,
+    is_redis_dsn,
+    redis_installed,
+)
 from .redis_store import RedisStore
 
 if TYPE_CHECKING:
@@ -85,7 +90,6 @@ class StoreFactory:
                 raise InvalidArgumentError(RedisStore.MISSING_CLIENT)
             return
 
-        scheme, separator, _ = connection.partition(":")
-        described = f"{scheme}:" if separator else connection
-
-        raise InvalidArgumentError(f'Unsupported connection: "{described}".')
+        raise InvalidArgumentError(
+            f'Unsupported connection: "{describe_connection_scheme(connection)}".'
+        )

@@ -28,6 +28,7 @@ __all__ = [
     "DEFAULT_TIMEOUT",
     "REDIS_SCHEMES",
     "create_redis_client",
+    "describe_connection_scheme",
     "is_redis_client",
     "is_redis_dsn",
     "redis_installed",
@@ -44,6 +45,16 @@ REDIS_SCHEMES: Final[Mapping[str, str]] = {
 
 DEFAULT_TIMEOUT: Final = 5.0
 """Seconds a client waits to connect, or for a reply, unless the DSN says otherwise."""
+
+
+def describe_connection_scheme(connection: str) -> str:
+    """Return ``connection``'s scheme for an error message, never what follows it.
+
+    What follows the scheme may carry credentials; a string without a scheme
+    is a bare keyword, safe to repeat whole.
+    """
+    scheme, separator, _ = connection.partition(":")
+    return f"{scheme}:" if separator else connection
 
 
 def is_redis_dsn(dsn: str) -> bool:

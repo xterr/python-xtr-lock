@@ -67,7 +67,7 @@ class LockBundle(Bundle[LockConfig]):
         if not bundle_active(builder, "logging"):
             return
         # Logging is an optional peer, importable only once it is active.
-        from xtr_logging.bundle import LoggingConfig  # noqa: PLC0415
+        from xtr_logging.bundle import LoggingConfig  # noqa: PLC0415 — optional peer
 
         def add_lock_channel(config: LoggingConfig) -> LoggingConfig:
             return config.with_channels(LOCK_CHANNEL)
@@ -167,7 +167,7 @@ def _store_factory(
         finally:
             for opened in built:
                 if isinstance(opened, RedisStore):
-                    await opened.aclose()
+                    await opened.close()
 
     return named_factory(store, f"lock_store_{resource}")
 

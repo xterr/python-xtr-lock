@@ -183,14 +183,14 @@ async def test_from_url_reads_the_dsn(dsn: str, expected: dict[str, object]) -> 
 
     kwargs = client.connection_pool.connection_kwargs
     assert {name: kwargs.get(name) for name in expected} == expected
-    await store.aclose()
+    await store.close()
 
 
 async def test_valkeys_reads_as_a_tls_connection() -> None:
     store = RedisStore.from_url("valkeys://cache:6380")
 
     assert store._redis.connection_pool.connection_class.__name__ == "SSLConnection"
-    await store.aclose()
+    await store.close()
 
 
 def test_from_url_refuses_another_scheme_without_echoing_the_dsn() -> None:
@@ -201,17 +201,17 @@ def test_from_url_refuses_another_scheme_without_echoing_the_dsn() -> None:
     assert '"memcached"' in str(raised.value)
 
 
-async def test_aclose_closes_only_a_connection_the_store_opened() -> None:
+async def test_close_closes_only_a_connection_the_store_opened() -> None:
     fake = _server()
     lent = RedisStore(fake.as_client())
 
-    await lent.aclose()
+    await lent.close()
 
     assert not fake.closed
 
     owned = RedisStore(fake.as_client())
     owned._owns_connection = True
-    await owned.aclose()
+    await owned.close()
 
     assert fake.closed
 
@@ -220,7 +220,7 @@ async def test_from_url_builds_an_asyncio_client() -> None:
     store = RedisStore.from_url("redis://localhost:6379")
 
     assert isinstance(store._redis, Redis)
-    await store.aclose()
+    await store.close()
 
 
 async def test_the_prefix_goes_in_front_of_every_redis_key() -> None:
@@ -260,14 +260,14 @@ async def test_from_url_takes_the_prefix_out_of_the_dsn() -> None:
     assert store.prefix == "app:locks:"
     assert "prefix" not in kwargs
     assert (kwargs.get("db"), kwargs.get("socket_timeout")) == (2, 3.0)
-    await store.aclose()
+    await store.close()
 
 
 async def test_without_a_prefix_option_there_is_no_prefix() -> None:
     store = RedisStore.from_url("redis://localhost:6379")
 
     assert store.prefix == ""
-    await store.aclose()
+    await store.close()
 
 
 async def test_create_connection_never_hands_the_prefix_to_the_client() -> None:

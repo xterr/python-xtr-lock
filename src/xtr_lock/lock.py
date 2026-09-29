@@ -40,13 +40,18 @@ _RETRY_JITTER_MS: Final = 10
 
 @final
 class _Holder:
-    """What every lock acting for one key shares: whose turn it is, and whether it holds."""
+    """What every lock acting for one key shares: whose turn it is, and whether it holds.
 
-    __slots__ = ("dirty", "turn")
+    ``entered`` says, for each ``async with`` block open on the key, whether
+    that block took the lock — only such a block lets it go on the way out.
+    """
+
+    __slots__ = ("dirty", "entered", "turn")
 
     def __init__(self) -> None:
         self.turn = asyncio.Lock()
         self.dirty = False
+        self.entered: list[bool] = []
 
 
 _HOLDERS: Final[WeakKeyDictionary[Key, _Holder]] = WeakKeyDictionary()
@@ -176,7 +181,10 @@ class Lock(LoggerAware, SharedLockInterface):
     @override
     async def __aenter__(self) -> Self:
         """Wait for the lock, and hold it for the ``async with`` block."""
-        _ = await self.acquire(blocking=True)
+        async with self._holder.turn:
+            took = not self._holder.dirty
+            _ = await self._take(blocking=True, shared=None)
+            self._holder.entered.append(took)
 
         return self
 
@@ -187,9 +195,15 @@ class Lock(LoggerAware, SharedLockInterface):
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """Let the lock go, when the holder took it and the store says it still holds it."""
+        """Let the lock go if this block took it, and the store says it still holds it.
+
+        A block entered while the holder already held the lock — a nested
+        one, or one opened after ``acquire()`` — leaves it held.
+        """
         async with self._holder.turn:
-            if not self._holder.dirty or not await self._is_acquired():
+            # Left without being entered, as before: let go of what the holder holds.
+            took = self._holder.entered.pop() if self._holder.entered else True
+            if not took or not self._holder.dirty or not await self._is_acquired():
                 return
 
             await self._release()

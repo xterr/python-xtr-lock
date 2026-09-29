@@ -60,15 +60,21 @@ _TIME_PROBE: Final = """
     return 1
 """
 
-_SAVE: Final = """
+_PRELUDE: Final = """
     local key = KEYS[1]
-    local uniqueToken = ARGV[2]
-    local ttl = tonumber(ARGV[3])
 
     -- a plain string under the key is a lock this store does not own
     if redis.call("TYPE", key).ok == "string" then
         return false
     end
+"""
+"""What every script starts with: the key, and refusing one this store does not own."""
+
+_SAVE: Final = (
+    _PRELUDE
+    + """
+    local uniqueToken = ARGV[2]
+    local ttl = tonumber(ARGV[3])
 
     {now}
 
@@ -95,16 +101,13 @@ _SAVE: Final = """
 
     return true
 """
+)
 
-_SAVE_READ: Final = """
-    local key = KEYS[1]
+_SAVE_READ: Final = (
+    _PRELUDE
+    + """
     local uniqueToken = ARGV[2]
     local ttl = tonumber(ARGV[3])
-
-    -- a plain string under the key is a lock this store does not own
-    if redis.call("TYPE", key).ok == "string" then
-        return false
-    end
 
     {now}
 
@@ -125,16 +128,13 @@ _SAVE_READ: Final = """
 
     return true
 """
+)
 
-_PUT_OFF_EXPIRATION: Final = """
-    local key = KEYS[1]
+_PUT_OFF_EXPIRATION: Final = (
+    _PRELUDE
+    + """
     local uniqueToken = ARGV[2]
     local ttl = tonumber(ARGV[3])
-
-    -- a plain string under the key is a lock this store does not own
-    if redis.call("TYPE", key).ok == "string" then
-        return false
-    end
 
     {now}
 
@@ -155,15 +155,12 @@ _PUT_OFF_EXPIRATION: Final = """
 
     return true
 """
+)
 
-_DELETE: Final = """
-    local key = KEYS[1]
+_DELETE: Final = (
+    _PRELUDE
+    + """
     local uniqueToken = ARGV[1]
-
-    -- a plain string under the key is a lock this store does not own
-    if redis.call("TYPE", key).ok == "string" then
-        return false
-    end
 
     -- not held by this token
     if not redis.call("ZSCORE", key, uniqueToken) then
@@ -180,15 +177,12 @@ _DELETE: Final = """
 
     return true
 """
+)
 
-_EXISTS: Final = """
-    local key = KEYS[1]
+_EXISTS: Final = (
+    _PRELUDE
+    + """
     local uniqueToken = ARGV[2]
-
-    -- a plain string under the key is a lock this store does not own
-    if redis.call("TYPE", key).ok == "string" then
-        return false
-    end
 
     {now}
 
@@ -201,6 +195,7 @@ _EXISTS: Final = """
 
     return false
 """
+)
 
 
 class _ScriptingClient(Protocol):
@@ -301,7 +296,7 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
     ) -> RedisStore:
         """Connect to the server ``dsn`` names, on first use, and own the connection.
 
-        Close the store with :meth:`aclose` when done.
+        Close the store with :meth:`close` when done.
 
         Args:
             dsn: ``redis://``, ``rediss://``, ``unix://``, or ``valkey://`` and
@@ -345,7 +340,7 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
         """What is put in front of every resource to make its Redis key."""
         return self._prefix
 
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         """Close the connection, when :meth:`from_url` opened it; otherwise do nothing."""
         if self._owns_connection:
             await self._redis.aclose()

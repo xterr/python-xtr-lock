@@ -10,6 +10,7 @@ from xtr_lock import InvalidArgumentError
 from xtr_lock.store import (
     REDIS_SCHEMES,
     create_redis_client,
+    describe_connection_scheme,
     is_redis_client,
     is_redis_dsn,
     redis_installed,
@@ -39,6 +40,14 @@ async def test_a_dsn_makes_a_client_of_its_scheme_without_connecting(
     assert isinstance(client, Redis)
     assert client.connection_pool.connection_class.__name__ == connection
     await client.aclose()
+
+
+@pytest.mark.parametrize(
+    ("connection", "described"),
+    [("mysql://user:secret@db/app", "mysql:"), ("flock", "flock")],
+)
+def test_a_connection_is_described_by_its_scheme_alone(connection: str, described: str) -> None:
+    assert describe_connection_scheme(connection) == described
 
 
 def test_a_scheme_that_is_not_redis_is_refused_naming_it_and_nothing_else() -> None:

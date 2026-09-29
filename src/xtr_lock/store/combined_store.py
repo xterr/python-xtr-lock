@@ -29,7 +29,7 @@ __all__ = ["CombinedStore"]
 class _Closable(Protocol):
     """A store holding something to close, such as a connection it opened."""
 
-    async def aclose(self) -> None: ...
+    async def close(self) -> None: ...
 
 
 @final
@@ -50,7 +50,7 @@ class CombinedStore(LoggerAware, SharedLockStoreInterface, ExpiringStoreMixin):
 
     Reading falls back to writing on any store that cannot share.
 
-    :meth:`aclose` closes every store that has something to close, such as a
+    :meth:`close` closes every store that has something to close, such as a
     Redis store that opened its own connection.
     """
 
@@ -211,7 +211,7 @@ class CombinedStore(LoggerAware, SharedLockStoreInterface, ExpiringStoreMixin):
 
         return False
 
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         """Close every store that has something to close, and leave the rest alone.
 
         Raises:
@@ -223,7 +223,7 @@ class CombinedStore(LoggerAware, SharedLockStoreInterface, ExpiringStoreMixin):
             if not isinstance(store, _Closable):
                 continue
             try:
-                await store.aclose()
+                await store.close()
             except Exception as error:  # noqa: BLE001 — every store is closed; the failures are raised together below.
                 errors.append(error)
 

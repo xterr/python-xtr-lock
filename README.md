@@ -67,7 +67,8 @@ finally:
 ```
 
 `acquire(blocking=True)` waits instead of giving up, and `async with lock:` is the same wait
-followed by a release on the way out, including when the block raises:
+followed by a release on the way out, including when the block raises. A block opened while the
+lock is already held — nested in another, or after `acquire()` — leaves it held:
 
 ```python
 async with factory.create_lock("invoice:42"):
@@ -236,7 +237,7 @@ from xtr_lock import RedisStore
 
 store = RedisStore(Redis.from_url("redis://localhost:6379/0"))  # your client, you close it
 store = RedisStore.from_url("redis://localhost:6379/0")  # its own client ...
-await store.aclose()  # ... which it closes
+await store.close()  # ... which it closes
 
 store = RedisStore(client, prefix="app:locks:")  # keys named app:locks:<resource>
 store = RedisStore.from_url("redis://localhost:6379/0?prefix=app:locks:")
@@ -251,6 +252,11 @@ store = RedisStore.from_url("redis://localhost:6379/0?prefix=app:locks:")
   seconds, raising `LockStorageError` rather than waiting forever; `?socket_timeout=30` and
   `?socket_connect_timeout=2` in the DSN change that.
 - One server — standalone Redis or Valkey. Not a cluster, not Sentinel.
+
+> **Two clocks.** A holder counts its lock's remaining lifetime on this process's monotonic
+> clock; the server expires the key on its own wall clock. They agree to within network latency
+> while both run true, but a server clock stepped forward drops locks early. Keep the servers'
+> clocks synchronized, and refresh well before `get_remaining_lifetime()` reaches zero.
 
 ### `CombinedStore`
 
@@ -272,7 +278,7 @@ store = CombinedStore(
   reported expired.
 - `save_read` falls back to `save` on any store that cannot share.
 - Any store failing — conflict, network, anything — counts as a vote against.
-- `await store.aclose()` closes every store that has something to close — a Redis store that
+- `await store.close()` closes every store that has something to close — a Redis store that
   opened its own connection — and raises the failures together, once all were asked.
 
 ### Writing a store

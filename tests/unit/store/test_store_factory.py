@@ -64,7 +64,7 @@ async def test_a_redis_dsn_makes_a_store_owning_its_connection(dsn: str) -> None
 
     assert isinstance(store, RedisStore)
     assert store._owns_connection
-    await store.aclose()
+    await store.close()
 
 
 async def test_a_redis_client_makes_a_store_on_that_client() -> None:

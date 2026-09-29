@@ -517,6 +517,29 @@ async def test_context_waits_for_the_lock_and_releases_it() -> None:
     assert await Lock(Key("r"), store).acquire()
 
 
+async def test_a_nested_context_keeps_the_lock_until_the_outer_one_ends() -> None:
+    store = InMemoryStore()
+    lock = Lock(Key("r"), store)
+
+    async with lock:
+        async with lock:
+            pass
+        held_after_inner = await lock.is_acquired()
+
+    assert held_after_inner
+    assert not await lock.is_acquired()
+
+
+async def test_a_context_leaves_held_a_lock_acquired_before_it() -> None:
+    lock = Lock(Key("r"), InMemoryStore())
+    assert await lock.acquire()
+
+    async with lock:
+        pass
+
+    assert await lock.is_acquired()
+
+
 async def test_context_releases_when_the_block_raises() -> None:
     store = InMemoryStore()
     lock = Lock(Key("r"), store)
