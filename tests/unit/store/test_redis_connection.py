@@ -98,7 +98,7 @@ async def test_it_recognises_a_client_only_once_the_library_is_loaded(
 def test_it_knows_whether_the_library_is_installed(monkeypatch: pytest.MonkeyPatch) -> None:
     assert redis_installed()
 
-    monkeypatch.setattr(importlib.util, "find_spec", _no_spec)
+    monkeypatch.setattr(importlib.util, "find_spec", _not_installed)
 
     assert not redis_installed()
 
@@ -107,7 +107,7 @@ def test_every_scheme_maps_to_one_the_client_reads() -> None:
     assert set(REDIS_SCHEMES.values()) == {"redis", "rediss", "unix"}
 
 
-def _no_spec(name: str) -> None:
+def _not_installed(name: str) -> None:
     del name
 
 
