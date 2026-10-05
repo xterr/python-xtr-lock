@@ -1,6 +1,6 @@
 [project]
 name = "xtr-lock"
-version = "2.0.0"
+version = "3.0.0"
 description = "Exclusive and shared locks around resources, held in memory, in files, in Redis, or across several stores at once."
 readme = "README.md"
 authors = [
@@ -22,8 +22,8 @@ classifiers = [
 ]
 dependencies = [
     "typing-extensions>=4.4",
-    "xtr-clock>=2.0,<3",
-    "xtr-logging-contracts>=2.0,<3",
+    "xtr-clock>=3.0,<4",
+    "xtr-logging-contracts>=3.0,<4",
 ]
 
 [project.optional-dependencies]
@@ -31,11 +31,11 @@ redis = [
     "redis>=5.0",
 ]
 di = [
-    "xtr-dependency-injection>=2.0,<3",
-    "xtr-service-contracts>=2.0,<3",
+    "xtr-dependency-injection>=3.0,<4",
+    "xtr-service-contracts>=3.0,<4",
 ]
 logging = [
-    "xtr-logging>=2.0,<3",
+    "xtr-logging>=3.0,<4",
 ]
 
 # Advertises the bundle so debug:bundles can name it when installed but not listed.
@@ -56,9 +56,9 @@ dev = [
     "anyio>=4.0",
     "ty>=0.0.83",
     "redis>=5.0",
-    "xtr-dependency-injection>=2.0,<3",
-    "xtr-logging>=2.0,<3",
-    "xtr-service-contracts>=2.0,<3",
+    "xtr-dependency-injection>=3.0,<4",
+    "xtr-logging>=3.0,<4",
+    "xtr-service-contracts>=3.0,<4",
     "fakeredis[lua]>=2.38.0",
 ]
 
