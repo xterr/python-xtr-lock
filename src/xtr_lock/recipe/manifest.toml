@@ -1,0 +1,21 @@
+# The recipe for xtr-lock: what *Use in an application* in the README takes, as
+# data. Keep the two in step — the README is the source.
+
+[bundles]
+# "<module>:<class>" = the environments it is listed with, exactly as in BUNDLES.
+"xtr_lock.bundle:LockBundle" = { all = true }
+
+# No [files]: configuring is optional. With none the "default" resource keeps
+# file locks, enough for processes on one machine, and nothing is opened until a
+# factory is first asked for. An application that wants resources of its own
+# writes config/lock.py itself.
+
+# No [env]: nothing is required. A DSN an application gives as env(...) must be
+# set when it boots, because booting checks every resource.
+
+[gitignore]
+# A file lock lives under kernel.share_dir, var/share in the project.
+lines = ["/var/"]
+
+[notes]
+check = ["<script> debug:bundles — lock is listed and active"]

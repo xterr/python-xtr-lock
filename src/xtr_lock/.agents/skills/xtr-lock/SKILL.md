@@ -186,6 +186,10 @@ async def test_only_one_run_at_a_time() -> None:
 
 ## Use in an application
 
+`uv run xtr-recipes recipes:sync` applies the recipe shipped with this package: it lists
+`LockBundle` and ignores `/var/`. That is the steps below a recipe can do; the others it prints for
+you to make.
+
 1. **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines and `logging` for
    the lock channel.
 2. **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from

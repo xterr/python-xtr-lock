@@ -300,6 +300,8 @@ Everything adding this package to an application on
 
 - **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines, and `logging`
   for the lock channel.
+- **Recipe** — `uv run xtr-recipes recipes:sync` does the *Activate* and *Ignore* steps below: it
+  lists `LockBundle` and ignores `/var/`. There is no config file or environment to write.
 - **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
   `xtr_lock.bundle`.
 - **Brings along** — the logging bundle, when xtr-logging is installed.
