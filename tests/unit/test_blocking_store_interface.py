@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_only_the_file_store_waits_to_write(tmp_path: Path) -> None:
+def test_the_file_and_null_stores_wait_to_write_but_memory_does_not(tmp_path: Path) -> None:
     assert isinstance(FlockStore(tmp_path), BlockingStoreInterface)
+    assert isinstance(NullStore(), BlockingStoreInterface)
     assert not isinstance(InMemoryStore(), BlockingStoreInterface)
-    assert not isinstance(NullStore(), BlockingStoreInterface)

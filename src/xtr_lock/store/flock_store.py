@@ -77,12 +77,14 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
     store on the same machine, and a directory on a network file system may
     not honour them at all. POSIX only.
 
-    Without a directory of its own, the store keeps its files in one made for
-    this user alone under the temporary directory, where anyone could
-    otherwise create or hold a lock file first; so it binds only processes of
-    this user. Give a directory the processes share for locks that bind
-    several users — a file is opened for everyone, and never through a
-    symbolic link.
+    The lock directory belongs to one user: without a directory of its own,
+    the store keeps its files in one made for this user alone under the
+    temporary directory, where anyone could otherwise create or hold a lock
+    file first; a directory it is given must be owned by this user too, and a
+    directory it creates is made private (``0o700``). The owner opens it up —
+    the directory's and the files' permissions — to share it with others: a
+    lock file is created readable and writable by everyone, and never opened
+    through a symbolic link.
     """
 
     __slots__ = ("_clock", "_lock_path")
@@ -106,22 +108,28 @@ class FlockStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
 
         Raises:
             InvalidArgumentError: When the directory cannot be created or
-                written to, the default one belongs to another user, or the
-                platform has no file locks.
+                written to, it belongs to another user, or the platform has no
+                file locks.
         """
         if not _HAS_FILE_LOCKS:  # pragma: no cover — the suite runs on POSIX.
             raise InvalidArgumentError("file locks are not available on Windows")
 
-        path = Path(lock_path) if lock_path is not None else _private_directory()
-        if not path.is_dir():
-            with suppress(OSError):
-                path.mkdir(mode=0o777, parents=True, exist_ok=True)
+        if lock_path is None:
+            path = _private_directory()
+        else:
+            path = Path(lock_path)
             if not path.is_dir():
-                raise InvalidArgumentError(
-                    f'The FlockStore directory "{path}" does not exist and cannot be created.',
-                )
-        elif not os.access(path, os.W_OK):
-            raise InvalidArgumentError(f'The FlockStore directory "{path}" is not writable.')
+                # A directory the store makes is private to this user, like the default one.
+                with suppress(OSError):
+                    path.mkdir(mode=_PRIVATE_MODE, parents=True, exist_ok=True)
+                if not path.is_dir():
+                    raise InvalidArgumentError(
+                        f'The FlockStore directory "{path}" does not exist and cannot be created.',
+                    )
+                with suppress(OSError):
+                    path.chmod(_PRIVATE_MODE)
+            else:
+                _check_supplied_directory(path)
 
         self._lock_path = path
         self._clock = clock if clock is not None else Clock()
@@ -326,6 +334,28 @@ def _private_directory() -> Path:
             f'The FlockStore directory "{path}" cannot be made private: {error}'
         ) from error
     return path
+
+
+def _check_supplied_directory(path: Path) -> None:
+    """Refuse a supplied lock directory that is not a writable directory of this user.
+
+    A directory someone else owns — or a symbolic link standing in for one —
+    could let that other party plant or hold a lock file first, so the store
+    binds only directories the running user owns. The mode is left untouched:
+    the owner sets it to share the directory with others.
+
+    Raises:
+        InvalidArgumentError: When it is not this user's directory, or is not
+            writable.
+    """
+    owner = os.getuid() if hasattr(os, "getuid") else None
+    status = path.lstat()
+    if not stat.S_ISDIR(status.st_mode) or (owner is not None and status.st_uid != owner):
+        raise InvalidArgumentError(
+            f'Refusing the FlockStore directory "{path}": it is not a directory of this user.',
+        )
+    if not os.access(path, os.W_OK):
+        raise InvalidArgumentError(f'The FlockStore directory "{path}" is not writable.')
 
 
 def _close(descriptor: int, collected: weakref.finalize[..., None] | None = None) -> None:

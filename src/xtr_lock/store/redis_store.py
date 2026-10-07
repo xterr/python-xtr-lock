@@ -6,6 +6,7 @@ import hashlib
 import math
 from typing import TYPE_CHECKING, ClassVar, Final, Protocol, cast, final
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from weakref import WeakKeyDictionary
 
 from typing_extensions import override
 from xtr_clock import Clock
@@ -34,7 +35,13 @@ __all__ = ["RedisStore"]
 _WRITE_MEMBER: Final = "__write__"
 """The member that marks a write lock; never handed out as a holder's token."""
 
-_TIME_PROBE_KEY: Final = "xtr_lock_check_support_time"
+_TIME_PROBE_KEY: Final = "__xtr_lock_time_probe__"
+"""The key the clock probe writes for a millisecond.
+
+Named so that nobody reading a key listing can mistake it for an application's
+own: it shares the database with whatever else the deployment keeps there, and a
+resource could be called anything.
+"""
 
 _PREFIX_OPTION: Final = "prefix"
 
@@ -42,6 +49,9 @@ _TIME_REFUSALS: Final = (
     "commands not allowed after non deterministic",
     "is not allowed from script",
 )
+
+_SUPPORT_TIME: Final[WeakKeyDictionary[Redis, bool]] = WeakKeyDictionary()
+"""Whether a client's server lets scripts read its clock, probed once per client."""
 
 _SERVER_NOW: Final = """
     local now = redis.call("TIME")
@@ -243,14 +253,12 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
         "_owns_connection",
         "_prefix",
         "_redis",
-        "_support_time",
     )
 
     _redis: Redis
     _initial_ttl: float
     _prefix: str
     _clock: ClockInterface
-    _support_time: bool | None
     _owns_connection: bool
 
     def __init__(
@@ -283,7 +291,6 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
         self._initial_ttl = initial_ttl
         self._prefix = prefix
         self._clock = clock if clock is not None else Clock()
-        self._support_time = None
         self._owns_connection = False
 
     @classmethod
@@ -434,16 +441,18 @@ class RedisStore(SharedLockStoreInterface, ExpiringStoreMixin):
 
     async def _now_code(self) -> str:
         """Return the script lines that set ``now``, from the server's clock when it can."""
-        if self._support_time is None:
+        support = _SUPPORT_TIME.get(self._redis)
+        if support is None:
             try:
                 probe_key = f"{self._prefix}{_TIME_PROBE_KEY}"
-                self._support_time = await self._evaluate(_TIME_PROBE, probe_key, []) == 1
+                support = await self._evaluate(_TIME_PROBE, probe_key, []) == 1
             except LockStorageError as error:
                 if not any(refusal in error.reason for refusal in _TIME_REFUSALS):
                     raise
-                self._support_time = False
+                support = False
+            _SUPPORT_TIME[self._redis] = support
 
-        return _SERVER_NOW if self._support_time else _CLIENT_NOW
+        return _SERVER_NOW if support else _CLIENT_NOW
 
     def _now(self) -> float:
         return self._clock.now().timestamp()

@@ -29,6 +29,7 @@ async def test_every_save_succeeds_for_every_key() -> None:
     await store.save(first)
     await store.save(second)
     await store.save_read(first)
+    await store.wait_and_save(first)
     await store.wait_and_save_read(second)
     await store.put_off_expiration(first, 10)
     await store.delete(first)
@@ -45,6 +46,6 @@ async def test_a_lock_on_it_is_acquired_but_never_reported_held() -> None:
     await lock.release()
 
 
-def test_it_can_wait_to_share_but_has_no_writer_wait() -> None:
+def test_it_can_wait_natively_for_both_modes() -> None:
+    assert isinstance(NullStore(), BlockingStoreInterface)
     assert isinstance(NullStore(), BlockingSharedLockStoreInterface)
-    assert not isinstance(NullStore(), BlockingStoreInterface)

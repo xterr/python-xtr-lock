@@ -48,6 +48,12 @@ class CombinedStore(LoggerAware, SharedLockStoreInterface, ExpiringStoreMixin):
     gets what is left of it when its turn comes, so the lock never outlives
     the moment it was meant to end.
 
+    There has to be at least one store. A combination of none would hand every
+    strategy a count of nothing out of nothing, which every strategy reads as
+    met: a store that reports every lock taken and keeps none. That is refused
+    where it is built rather than discovered the first time two holders run at
+    once.
+
     Reading falls back to writing on any store that cannot share.
 
     :meth:`close` closes every store that has something to close, such as a
@@ -74,9 +80,14 @@ class CombinedStore(LoggerAware, SharedLockStoreInterface, ExpiringStoreMixin):
                 counts on a monotonic clock.
 
         Raises:
-            InvalidArgumentError: When something in ``stores`` is not a store.
+            InvalidArgumentError: When ``stores`` is empty, or when something
+                in it is not a store.
         """
         self._stores = tuple(stores)
+        if not self._stores:
+            raise InvalidArgumentError(
+                "A combined store needs at least one store to combine.",
+            )
         for store in self._stores:
             if not isinstance(store, PersistingStoreInterface):  # pyright: ignore[reportUnnecessaryIsInstance] -- the annotation is not enforced at runtime; a caller may pass anything
                 raise InvalidArgumentError(

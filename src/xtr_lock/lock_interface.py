@@ -33,6 +33,9 @@ class LockInterface(Protocol):
         Raises:
             LockConflictedError: When waiting was asked for but the store
                 gave up.
+            LockExpiredError: When the lifetime the lock carries ran out
+                while the store was taking it. The lock is let go again
+                first, so nothing is held when this arrives.
             LockAcquiringError: When the store failed for any other reason.
         """
         ...
@@ -48,6 +51,9 @@ class LockInterface(Protocol):
             InvalidArgumentError: When no lifetime is given here or on the
                 lock.
             LockConflictedError: When someone else holds the lock now.
+            LockExpiredError: When the lifetime ran out while the store was
+                pushing the expiry back, which leaves the lock let go rather
+                than extended.
             LockAcquiringError: When the store failed for any other reason.
         """
         ...

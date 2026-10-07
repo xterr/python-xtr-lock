@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, final
 from typing_extensions import override
 
 from xtr_lock.blocking_shared_lock_store_interface import BlockingSharedLockStoreInterface
+from xtr_lock.blocking_store_interface import BlockingStoreInterface
 
 if TYPE_CHECKING:
     from xtr_lock.key import Key
@@ -15,7 +16,7 @@ __all__ = ["NullStore"]
 
 
 @final
-class NullStore(BlockingSharedLockStoreInterface):
+class NullStore(BlockingStoreInterface, BlockingSharedLockStoreInterface):
     """Accepts every lock at once and remembers none of them.
 
     Switches locking off at the store: every save succeeds without waiting,
@@ -33,6 +34,10 @@ class NullStore(BlockingSharedLockStoreInterface):
     @override
     async def save_read(self, key: Key) -> None:
         """Do nothing."""
+
+    @override
+    async def wait_and_save(self, key: Key) -> None:
+        """Do nothing: the lock is free at once, so there is nothing to wait for."""
 
     @override
     async def wait_and_save_read(self, key: Key) -> None:

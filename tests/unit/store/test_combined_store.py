@@ -69,6 +69,11 @@ def test_every_member_must_be_a_store() -> None:
         _ = CombinedStore([InMemoryStore(), object()], ConsensusStrategy())  # pyright: ignore[reportArgumentType]  # ty: ignore[invalid-argument-type]
 
 
+def test_a_combined_store_refuses_to_combine_nothing() -> None:
+    with pytest.raises(InvalidArgumentError, match="at least one store"):
+        _ = CombinedStore([], ConsensusStrategy())
+
+
 async def test_save_throws_exception_on_failure() -> None:
     store1, store2 = _pair()
     store1.script("save", LockConflictedError("r"))

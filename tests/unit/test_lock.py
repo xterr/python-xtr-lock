@@ -190,10 +190,9 @@ async def test_refresh_releases_a_lock_that_expired_on_the_way() -> None:
     store = ScriptedStore()
     store.script("put_off_expiration", _expire)
 
-    with pytest.raises(LockAcquiringError) as raised:
+    with pytest.raises(LockExpiredError):
         await Lock(Key("r"), store, 10).refresh()
 
-    assert isinstance(raised.value.__cause__, LockExpiredError)
     assert store.called("delete") == [("r",)]
 
 
@@ -201,10 +200,9 @@ async def test_acquire_releases_a_lock_that_expired_while_being_stored() -> None
     store = ScriptedStore()
     store.script("save", _expire)
 
-    with pytest.raises(LockAcquiringError) as raised:
+    with pytest.raises(LockExpiredError):
         _ = await Lock(Key("r"), store).acquire()
 
-    assert isinstance(raised.value.__cause__, LockExpiredError)
     assert store.called("delete") == [("r",)]
 
 
@@ -213,10 +211,8 @@ async def test_an_expired_lock_is_reported_even_when_releasing_it_fails() -> Non
     store.script("save", _expire)
     store.script("delete", RuntimeError("down"))
 
-    with pytest.raises(LockAcquiringError) as raised:
+    with pytest.raises(LockExpiredError):
         _ = await Lock(Key("r"), store).acquire()
-
-    assert isinstance(raised.value.__cause__, LockExpiredError)
 
 
 async def test_acquire_wraps_any_other_failure_and_logs_it() -> None:
@@ -412,14 +408,10 @@ async def test_acquire_read_sets_ttl_and_refuses_an_expired_lock() -> None:
     store = ScriptedSharedStore()
     store.script("put_off_expiration", _expire)
 
-    with pytest.raises(LockAcquiringError) as raised:
+    with pytest.raises(LockExpiredError):
         _ = await Lock(Key("r"), store, 10).acquire_read()
 
     assert store.called("put_off_expiration") == [("r", 10)]
-    # The expiry surfaces through refresh, which wraps it too.
-    refresh_failure = raised.value.__cause__
-    assert isinstance(refresh_failure, LockAcquiringError)
-    assert isinstance(refresh_failure.__cause__, LockExpiredError)
 
 
 @final
@@ -631,6 +623,22 @@ async def test_locks_made_from_one_key_are_one_holder() -> None:
 
     assert not await first.is_acquired()
     assert await Lock(Key("r"), store).acquire()
+
+
+def test_a_key_reused_on_a_second_event_loop_works() -> None:
+    key = Key("r")
+
+    async def acquire_and_release() -> bool:
+        lock = Lock(key, InMemoryStore())
+        taken = await lock.acquire()
+        await lock.release()
+
+        return taken
+
+    assert asyncio.run(acquire_and_release())
+    # The holder made on the first loop carried an asyncio.Lock bound to it;
+    # a second run must get a holder of its own rather than that stale one.
+    assert asyncio.run(acquire_and_release())
 
 
 async def test_a_timed_out_wait_holds_nothing_and_leaves_the_holder_alone() -> None:

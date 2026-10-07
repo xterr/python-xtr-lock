@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import secrets
+import threading
 from contextlib import suppress
 from typing import TYPE_CHECKING, Final, NoReturn, Self, final
 from weakref import WeakKeyDictionary
@@ -54,15 +55,44 @@ class _Holder:
         self.entered: list[bool] = []
 
 
-_HOLDERS: Final[WeakKeyDictionary[Key, _Holder]] = WeakKeyDictionary()
+_HOLDERS: Final[WeakKeyDictionary[Key, dict[asyncio.AbstractEventLoop, _Holder]]] = (
+    WeakKeyDictionary()
+)
+
+_HOLDERS_GUARD: Final = threading.Lock()
+"""Held while the holder table is read and written.
+
+The table is module state, and nothing says the loops that reach it live in one
+thread: an application may run a second loop in a worker thread, and two threads
+arriving on the same key would otherwise race to create its entry and each walk
+away with a holder of its own — two holders for one key, which is exactly what
+the table exists to prevent. The lock is held for dictionary work only, never
+across an await.
+"""
 
 
 def _holder_for(key: Key) -> _Holder:
-    holder = _HOLDERS.get(key)
-    if holder is None:
-        holder = _HOLDERS[key] = _Holder()
+    """Return the holder every lock for ``key`` on the running loop shares.
 
-    return holder
+    Keyed by the running loop as well as the key: an :class:`asyncio.Lock`
+    belongs to the loop it was made on, so a key reused on another loop — a
+    second :func:`asyncio.run`, say — is given a holder of its own there
+    rather than one bound to a loop that has gone.
+    """
+    loop = asyncio.get_running_loop()
+    with _HOLDERS_GUARD:
+        by_loop = _HOLDERS.get(key)
+        if by_loop is None:
+            by_loop = _HOLDERS[key] = {}
+        else:
+            for closed in [existing for existing in by_loop if existing.is_closed()]:
+                del by_loop[closed]
+
+        holder = by_loop.get(loop)
+        if holder is None:
+            holder = by_loop[loop] = _Holder()
+
+        return holder
 
 
 @final
@@ -102,7 +132,6 @@ class Lock(LoggerAware, SharedLockInterface):
     _store: PersistingStoreInterface
     _ttl: float | None
     _clock: ClockInterface
-    _holder: _Holder
 
     def __init__(
         self,
@@ -126,7 +155,11 @@ class Lock(LoggerAware, SharedLockInterface):
         self._store = store
         self._ttl = ttl
         self._clock = clock if clock is not None else Clock()
-        self._holder = _holder_for(key)
+
+    @property
+    def _holder(self) -> _Holder:
+        """The state every lock for this key on the running loop shares."""
+        return _holder_for(self._key)
 
     @override
     async def acquire(self, blocking: bool = False) -> bool:
@@ -250,6 +283,9 @@ class Lock(LoggerAware, SharedLockInterface):
                 raise
 
             return False
+        except LockExpiredError:
+            # The lifetime ran out while storing; the caller hears the expiry itself.
+            raise
         except Exception as error:
             self.logger.notice(
                 'Failed to acquire the "{resource}" lock.',
@@ -283,6 +319,9 @@ class Lock(LoggerAware, SharedLockInterface):
                 "someone else acquired the lock.",
                 self._context(),
             )
+            raise
+        except LockExpiredError:
+            # The lifetime ran out while extending; the caller hears the expiry itself.
             raise
         except Exception as error:
             self.logger.notice(

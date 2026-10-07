@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from xtr_dependency_injection import BootedKernel
+    from xtr_service_contracts import ContainerInterface
 
 pytestmark = pytest.mark.anyio
 
@@ -56,8 +57,15 @@ async def test_zero_config_boots_and_shuts_down() -> None:
 
 
 async def test_the_default_factory_is_provided_with_and_without_a_qualifier(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Building the default "flock" store creates a directory under share_dir: keep it off disk.
+    def share_dir(project_dir: Path) -> Path:
+        del project_dir
+        return tmp_path / "share"
+
+    monkeypatch.setattr(kernel_module, "share_dir", share_dir)
+
     async with await _kernel(tmp_path).boot() as booted:
         unqualified = await booted.container.get(LockFactory)
         qualified = await booted.container.get(LockFactory, "default")
@@ -172,3 +180,44 @@ async def test_boot_fails_when_a_dsn_variable_is_not_set() -> None:
         _ = await kernel.boot()
 
     assert "LOCK_TEST_DSN" in str(raised.value.__cause__)
+
+
+async def test_a_store_that_fails_to_build_closes_the_ones_already_built(
+    tmp_path: Path,
+    redis_client: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from typing import cast  # noqa: PLC0415 — local to this test's container stand-in.
+
+    from xtr_lock.bundle import lock_bundle  # noqa: PLC0415 — reaching the private factory.
+
+    closed: list[bool] = []
+    original_aclose = redis_client.aclose
+
+    async def record_aclose() -> None:
+        closed.append(True)
+        await original_aclose()
+
+    monkeypatch.setattr(redis_client, "aclose", record_aclose)
+    first = RedisStore(redis_client)
+    first._owns_connection = True
+
+    built = iter([first])
+
+    async def fake_build_store(entry: object, lock_dir: str, container: object) -> object:
+        del entry, lock_dir, container
+        try:
+            return next(built)
+        except StopIteration:
+            raise InvalidArgumentError("second store is unbuildable") from None
+
+    monkeypatch.setattr(lock_bundle, "_build_store", fake_build_store)
+
+    factory = lock_bundle._store_factory("quorum")
+    generator = factory(("first", "second"), str(tmp_path), cast("ContainerInterface", object()))
+
+    with pytest.raises(InvalidArgumentError, match="second store is unbuildable"):
+        async for _ in generator:
+            pass
+
+    assert closed == [True]

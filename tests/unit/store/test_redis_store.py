@@ -98,6 +98,17 @@ async def test_this_process_clock_is_sent_when_the_server_refuses_its_own(refusa
     assert len(lock_scripts) == 2
 
 
+async def test_two_stores_sharing_one_client_probe_the_clock_once() -> None:
+    fake = _server(probe=1)
+    client = fake.as_client()
+
+    await RedisStore(client).save(Key("r"))
+    await RedisStore(client).save(Key("other"))
+
+    probes = [script for script, _ in fake.evaluated if _PROBE in script]
+    assert len(probes) == 1
+
+
 async def test_any_other_probe_error_is_a_storage_error() -> None:
     fake = _server(probe=ResponseError("ERR out of memory"))
 
@@ -235,7 +246,7 @@ async def test_the_prefix_goes_in_front_of_every_redis_key() -> None:
 
     names = [arguments[0] for _, arguments in fake.evaluated]
     assert names == [
-        "app:xtr_lock_check_support_time",
+        "app:__xtr_lock_time_probe__",
         "app:r",
         "app:r",
         "app:r",

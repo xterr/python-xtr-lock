@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from xtr_dependency_injection import Kernel
+from xtr_dependency_injection.kernel import kernel as kernel_module
 
 from xtr_lock import LockFactory
 
@@ -27,7 +28,18 @@ def _kernel(tmp_path: Path) -> Kernel:
     )
 
 
-async def test_two_kernels_share_the_default_file_lock(tmp_path: Path, resource: str) -> None:
+async def test_two_kernels_share_the_default_file_lock(
+    tmp_path: Path,
+    resource: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The default resource is "flock" under kernel.share_dir; keep its files out of the project.
+    def share_dir(project_dir: Path) -> Path:
+        del project_dir
+        return tmp_path / "share"
+
+    monkeypatch.setattr(kernel_module, "share_dir", share_dir)
+
     async with await _kernel(tmp_path).boot() as first, await _kernel(tmp_path).boot() as second:
         holder = (await first.container.get(LockFactory)).create_lock(resource)
         waiter = (await second.container.get(LockFactory)).create_lock(resource)

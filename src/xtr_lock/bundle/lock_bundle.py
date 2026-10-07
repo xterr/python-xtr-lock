@@ -154,8 +154,12 @@ def _store_factory(
         lock_dir: str,
         container: ContainerInterface,
     ) -> AsyncIterator[PersistingStoreInterface]:
-        built = [await _build_store(entry, lock_dir, container) for entry in stores]
+        built: list[PersistingStoreInterface] = []
         try:
+            # Built inside the try so a later store failing still closes the earlier ones;
+            # each append must land before the next await, so list.extend would not do.
+            for entry in stores:
+                built.append(await _build_store(entry, lock_dir, container))  # noqa: PERF401
             if len(built) == 1:
                 yield built[0]
             else:

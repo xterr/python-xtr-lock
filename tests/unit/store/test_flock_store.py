@@ -90,6 +90,26 @@ def test_construct_with_subdir(tmp_path: Path) -> None:
     assert store.lock_path == directory
 
 
+def test_a_created_directory_is_private(tmp_path: Path) -> None:
+    directory = tmp_path / "locks"
+
+    _ = FlockStore(directory)
+
+    assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+
+
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="file ownership is POSIX")
+def test_a_supplied_directory_of_another_user_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    directory = tmp_path / "shared"
+    directory.mkdir()
+    monkeypatch.setattr(os, "getuid", lambda: directory.stat().st_uid + 1)
+
+    with pytest.raises(InvalidArgumentError, match="not a directory of this user"):
+        _ = FlockStore(directory)
+
+
 def test_it_defaults_to_a_directory_of_this_user_alone_in_the_temporary_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

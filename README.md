@@ -204,13 +204,14 @@ crashed process never leaves a lock behind.
 
 - The file is named `xtr.<up to 50 characters of the resource>.<digest>.lock`, with anything
   outside `A-Za-z0-9._-` folded to `-`. The digest keeps resources that fold alike apart.
-- Without a directory, the files go in `xtr-lock-<uid>` under the system's temporary directory,
-  made for this user alone (`0700`) and refused when another user owns it — in the shared
-  temporary directory anyone could otherwise create or hold a lock file first. Such locks bind
-  only one user's processes.
-- New lock files are created readable and writable by everyone, whatever the umask, so
-  processes run as different users can share a directory they are all given. A lock file is
-  never opened through a symbolic link.
+- The lock directory belongs to one user. Without a directory, the files go in `xtr-lock-<uid>`
+  under the system's temporary directory, made for this user alone (`0700`) and refused when
+  another user owns it — in the shared temporary directory anyone could otherwise create or hold
+  a lock file first. A directory you give is refused the same way when another user owns it, and
+  a directory the store creates is made private (`0700`).
+- The owner opens the directory up to share it: new lock files are created readable and writable
+  by everyone, whatever the umask, so processes run by others the owner lets into the directory
+  can share it. A lock file is never opened through a symbolic link.
 - A lock file is never removed: releasing closes it, and another process may be about to lock
   it. A store locking one file per entity (`invoice:<id>`) accumulates them; sweep old ones
   when nothing runs, e.g. `find <dir> -name 'xtr.*.lock' -mtime +7 -delete`.
@@ -310,7 +311,7 @@ Everything adding this package to an application on
   function returning `LockConfig` — see [Kernel / bundle](#kernel--bundle).
 - **Environment** — nothing required. A DSN given as `env(...)` must be set when the
   application boots: booting checks every resource.
-- **Ignore** — `var/`: lock files live under `kernel.share_dir`, `var/share` in the project.
+- **Ignore** — `/var/`: lock files live under `kernel.share_dir`, `var/share` in the project.
 - **Remove** — drop the `BUNDLES` entry, delete `<app>/config/lock.py`, then
   `uv remove xtr-lock` — unless xtr-cache or xtr-scheduler is installed, which depend on it.
 - **Check** — `debug:bundles` shows `lock` as `listed` and `active`.
@@ -388,7 +389,7 @@ Every error derives from `LockError` and carries its data as typed attributes.
 |---|---|
 | `LockConflictedError` | Someone else holds the lock — returned as `False` by a non-blocking acquire |
 | `LockAcquiringError` | Acquiring or extending failed for any other reason; the cause is chained |
-| `LockExpiredError` | The lock's lifetime ran out before the store confirmed it (chained inside `LockAcquiringError` when it surfaces through `acquire` or `refresh`) |
+| `LockExpiredError` | The lock's lifetime ran out before the store confirmed it; raised as is through `acquire`, `acquire_read` and `refresh` |
 | `LockReleasingError` | The store failed to let go, or still held the lock afterwards |
 | `LockStorageError` | The storage itself failed: a lock file that cannot be opened, a server error reply |
 | `InvalidArgumentError` | A bad argument: an unwritable lock directory, an unknown DSN, a `refresh` with no duration (also a `ValueError`) |
