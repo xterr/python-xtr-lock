@@ -26,7 +26,8 @@ This package keeps the lock the same and makes the place it lives a constructor 
 - 🗄️ **Five stores** — in memory, files, Redis, nowhere, or a quorum of several.
 - 📖 **Read and write modes** — many readers or one writer, with promotion and demotion.
 - ⏳ **Lifetimes** — a lock that is never released expires instead of blocking forever.
-- 🧩 **A bundle** — one `LockFactory` per named resource, configured in Python.
+- 🧩 **An optional bundle** — one `LockFactory` per named resource, configured in Python once
+  xtr-dependency-injection is installed beside it.
 
 ```python
 from xtr_lock import FlockStore, LockFactory
@@ -41,11 +42,14 @@ async with factory.create_lock("reports:nightly"):
 
 ```sh
 uv add xtr-lock
-uv add "xtr-lock[redis]"   # RedisStore, on redis-py's asyncio client
-uv add "xtr-lock[di]"      # the bundle for xtr-dependency-injection
+uv add "xtr-lock[redis]"                  # RedisStore, on redis-py's asyncio client
+uv add xtr-lock xtr-dependency-injection  # + the container, for the LockBundle
 ```
 
-Requires Python 3.11+. Depends on `xtr-clock` and `xtr-logging-contracts`.
+Requires Python 3.11+. Depends on `typing-extensions`, `xtr-clock` and `xtr-logging-contracts` —
+not on the container: the bundle is used when
+[xtr-dependency-injection](../xtr-dependency-injection) is installed beside the package, never as
+an extra, and the locks work without it.
 
 ## Quick start
 
@@ -299,8 +303,9 @@ take back a lock that expired while being stored.
 Everything adding this package to an application on
 [xtr-dependency-injection](../xtr-dependency-injection) takes — and, read backwards, what removing it undoes.
 
-- **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines, and `logging`
-  for the lock channel.
+- **Install** — `uv add xtr-lock xtr-dependency-injection`: the bundle needs the container
+  installed beside it, never as an extra. Add `redis` for locks across machines, and install
+  xtr-logging beside it for the lock channel.
 - **Recipe** — `uv run xtr-recipes recipes:sync` does the *Activate* and *Ignore* steps below: it
   lists `LockBundle` and ignores `/var/`. There is no config file or environment to write.
 - **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
@@ -318,7 +323,8 @@ Everything adding this package to an application on
 
 ## Kernel / bundle
 
-With [xtr-dependency-injection](../xtr-dependency-injection), list the bundle and name the
+With [xtr-dependency-injection](../xtr-dependency-injection) installed beside the package — it is
+not a dependency, and nothing outside `xtr_lock.bundle` needs it — list the bundle and name the
 resources:
 
 ```python

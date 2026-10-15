@@ -30,13 +30,6 @@ dependencies = [
 redis = [
     "redis>=5.0",
 ]
-di = [
-    "xtr-dependency-injection>=4.0,<5",
-    "xtr-service-contracts>=4.0,<5",
-]
-logging = [
-    "xtr-logging>=4.0,<5",
-]
 
 # Advertises the bundle so debug:bundles can name it when installed but not listed.
 # Advertising activates nothing: an application lists the bundles it wants.

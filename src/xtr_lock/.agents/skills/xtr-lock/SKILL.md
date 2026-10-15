@@ -20,7 +20,9 @@ call that touches the store is awaited.
 - Many readers, one writer: `await lock.acquire_read()`.
 - Act as the same holder twice: keep a `Key` and use `create_lock_from_key(key)`.
 - Never rely on garbage collection to release. Use `async with`, or `release()` in a `finally`.
-- In an application: activate `LockBundle`, inject `LockFactory`.
+- In an application, with xtr-dependency-injection installed beside the package (it is not a
+  dependency): activate `LockBundle`, inject `LockFactory`. Without the container, build the
+  `LockFactory` yourself; only `xtr_lock.bundle` needs it.
 
 ## Take a lock
 
@@ -190,8 +192,9 @@ async def test_only_one_run_at_a_time() -> None:
 `LockBundle` and ignores `/var/`. That is the steps below a recipe can do; the others it prints for
 you to make.
 
-1. **Install** — `uv add "xtr-lock[di]"`; add `redis` for locks across machines and `logging` for
-   the lock channel.
+1. **Install** — `uv add xtr-lock xtr-dependency-injection`: the bundle needs the container
+   installed beside it, never as an extra. Add `redis` for locks across machines, and install
+   xtr-logging beside it for the lock channel.
 2. **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
    `xtr_lock.bundle`.
 3. **Brings along** — the logging bundle, when xtr-logging is installed. Nothing otherwise.
