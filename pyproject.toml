@@ -1,6 +1,6 @@
 [project]
 name = "xtr-lock"
-version = "5.0.1"
+version = "5.1.0"
 description = "Exclusive and shared locks around resources, held in memory, in files, in Redis, or across several stores at once."
 readme = "README.md"
 authors = [
