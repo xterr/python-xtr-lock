@@ -1,6 +1,6 @@
 [project]
 name = "xtr-lock"
-version = "4.1.0"
+version = "5.0.0"
 description = "Exclusive and shared locks around resources, held in memory, in files, in Redis, or across several stores at once."
 readme = "README.md"
 authors = [
@@ -22,8 +22,8 @@ classifiers = [
 ]
 dependencies = [
     "typing-extensions>=4.4",
-    "xtr-clock>=4.0,<5",
-    "xtr-logging-contracts>=4.0,<5",
+    "xtr-clock>=5.0,<6",
+    "xtr-logging-contracts>=5.0,<6",
 ]
 
 [project.optional-dependencies]
@@ -49,9 +49,9 @@ dev = [
     "anyio>=4.0",
     "ty>=0.0.83",
     "redis>=5.0",
-    "xtr-dependency-injection>=4.0,<5",
-    "xtr-logging>=4.0,<5",
-    "xtr-service-contracts>=4.0,<5",
+    "xtr-dependency-injection>=5.0,<6",
+    "xtr-logging>=5.0,<6",
+    "xtr-service-contracts>=5.0,<6",
     "fakeredis[lua]>=2.38.0",
 ]
 
