@@ -189,20 +189,21 @@ async def test_only_one_run_at_a_time() -> None:
 ## Use in an application
 
 `uv run xtr-recipes recipes:sync` applies the recipe shipped with this package: it lists
-`LockBundle` and ignores `/var/`. That is the steps below a recipe can do; the others it prints for
-you to make.
+`LockBundle`, writes `<app>/config/packages/lock.py` with the bundle's own defaults, and ignores
+`/var/`. That is the steps below a recipe can do; the others it prints for you to make.
 
 1. **Install** — `uv add xtr-lock xtr-dependency-injection`: the bundle needs the container
    installed beside it, never as an extra. Add `redis` for locks across machines, and install
    xtr-logging beside it for the lock channel.
-2. **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
+2. **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/config/bundles.py`, imported from
    `xtr_lock.bundle`.
 3. **Brings along** — the logging bundle, when xtr-logging is installed. Nothing otherwise.
-4. **Configure** — optional; with no configuration the `default` resource is `{"default": "flock"}`,
-   file locks under `kernel.share_dir`:
+4. **Configure** — the recipe writes `<app>/config/packages/lock.py` holding the defaults, the
+   `default` resource as `{"default": "flock"}`, file locks under `kernel.share_dir`, and that is
+   where resources go:
 
    ```python
-   # <app>/config/lock.py
+   # <app>/config/packages/lock.py
    from xtr_dependency_injection import configure, env
    from xtr_lock.bundle import LockConfig
 
@@ -245,8 +246,10 @@ you to make.
    ```
 
 8. **Check** — `debug:bundles` shows `lock` as `listed` and `active`.
-9. **Remove** — drop the `BUNDLES` entry, delete `<app>/config/lock.py`, then `uv remove xtr-lock`
-   — unless xtr-cache or xtr-scheduler is installed, which depend on it.
+9. **Remove** — drop the `BUNDLES` entry; `uv run xtr-recipes recipes:remove xtr-lock` deletes
+   `<app>/config/packages/lock.py`, unless you edited it, in which case it is moved aside to
+   `lock.py.removed`. Then `uv remove xtr-lock` — unless xtr-cache or xtr-scheduler is installed,
+   which depend on it.
 
 ## Errors
 

@@ -306,19 +306,23 @@ Everything adding this package to an application on
 - **Install** — `uv add xtr-lock xtr-dependency-injection`: the bundle needs the container
   installed beside it, never as an extra. Add `redis` for locks across machines, and install
   xtr-logging beside it for the lock channel.
-- **Recipe** — `uv run xtr-recipes recipes:sync` does the *Activate* and *Ignore* steps below: it
-  lists `LockBundle` and ignores `/var/`. There is no config file or environment to write.
-- **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/bundles.py`, imported from
+- **Recipe** — `uv run xtr-recipes recipes:sync` does the *Activate*, *Configure* and *Ignore*
+  steps below: it lists `LockBundle`, writes `<app>/config/packages/lock.py` with the bundle's
+  own defaults, and ignores `/var/`. There is no environment to write.
+- **Activate** — `LockBundle: {"all": True}` in `BUNDLES` in `<app>/config/bundles.py`, imported from
   `xtr_lock.bundle`.
 - **Brings along** — the logging bundle, when xtr-logging is installed.
-- **Configure** — optional: with no configuration the `default` resource keeps file locks,
-  enough for processes on one machine. Resources go in `<app>/config/lock.py`, a `@configure`
-  function returning `LockConfig` — see [Kernel / bundle](#kernel--bundle).
+- **Configure** — optional: the recipe writes `<app>/config/packages/lock.py` holding the
+  defaults, the `default` resource keeping file locks, enough for processes on one machine.
+  Resources go in that same `@configure` function returning `LockConfig` — see
+  [Kernel / bundle](#kernel--bundle).
 - **Environment** — nothing required. A DSN given as `env(...)` must be set when the
   application boots: booting checks every resource.
 - **Ignore** — `/var/`: lock files live under `kernel.share_dir`, `var/share` in the project.
-- **Remove** — drop the `BUNDLES` entry, delete `<app>/config/lock.py`, then
-  `uv remove xtr-lock` — unless xtr-cache or xtr-scheduler is installed, which depend on it.
+- **Remove** — drop the `BUNDLES` entry; `uv run xtr-recipes recipes:remove xtr-lock` deletes
+  `<app>/config/packages/lock.py`, unless you edited it, in which case it is moved aside to
+  `lock.py.removed`. Then `uv remove xtr-lock` — unless xtr-cache or xtr-scheduler is installed,
+  which depend on it.
 - **Check** — `debug:bundles` shows `lock` as `listed` and `active`.
 
 ## Kernel / bundle
@@ -328,14 +332,14 @@ not a dependency, and nothing outside `xtr_lock.bundle` needs it — list the bu
 resources:
 
 ```python
-# app/bundles.py
+# app/config/bundles.py
 from xtr_lock.bundle import LockBundle
 
 BUNDLES = {LockBundle: {"all": True}}
 ```
 
 ```python
-# app/config/lock.py
+# app/config/packages/lock.py
 from xtr_dependency_injection import configure, env
 from xtr_lock.bundle import LockConfig
 

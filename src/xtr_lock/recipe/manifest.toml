@@ -5,10 +5,11 @@
 # "<module>:<class>" = the environments it is listed with, exactly as in BUNDLES.
 "xtr_lock.bundle:LockBundle" = { all = true }
 
-# No [files]: configuring is optional. With none the "default" resource keeps
-# file locks, enough for processes on one machine, and nothing is opened until a
-# factory is first asked for. An application that wants resources of its own
-# writes config/lock.py itself.
+[files]
+# Destination under the application package = template under this recipe.
+# The bundle's own defaults written out — the "default" resource on file locks,
+# nothing opened until a factory is asked for — as the place resources go.
+"config/packages/lock.py" = "files/config/lock.py.tmpl"
 
 # No [env]: nothing is required. A DSN an application gives as env(...) must be
 # set when it boots, because booting checks every resource.

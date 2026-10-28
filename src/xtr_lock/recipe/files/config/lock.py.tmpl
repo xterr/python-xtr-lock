@@ -1,0 +1,30 @@
+"""The lock resources, and the stores that keep each one's locks.
+
+The ``default`` resource exists with no configuration, on file locks under
+``var/share/lock``, and is the factory a service asking for locks with no name gets.
+
+```python
+LockConfig(
+    resources={
+        "default": "flock",
+        "invoices": ["redis://a:6379", "redis://b:6379", "redis://c:6379"],
+    }
+)
+```
+"""
+
+from __future__ import annotations
+
+from xtr_dependency_injection import configure
+from xtr_lock.bundle import LockConfig
+
+__all__ = ["lock"]
+
+
+@configure
+def lock() -> LockConfig:
+    """The ``default`` resource on file locks."""
+    # File locks hold only between processes on one machine: a DSN such as
+    # "redis://localhost:6379" holds across machines. A resource given several stores holds a
+    # lock once a majority of them agree.
+    return LockConfig()
