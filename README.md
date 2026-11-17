@@ -234,7 +234,8 @@ Each resource is a sorted set named after it: one member per holder, scored with
 that holder's lock expires, and a marker member while it is held for writing. Every change is
 one server-side script, so it lands whole; scripts are sent by digest and loaded on first use.
 Expiry is measured on the server's clock when scripts may read it, and on this process's clock
-otherwise.
+otherwise. In that case keep every client's clock synchronized: a process whose clock runs ahead
+expires the others' locks early, and one running behind keeps its own too long.
 
 ```python
 from redis.asyncio import Redis
@@ -405,6 +406,11 @@ Every error derives from `LockError` and carries its data as typed attributes.
 | `InvalidArgumentError` | A bad argument: an unwritable lock directory, an unknown DSN, a `refresh` with no duration (also a `ValueError`) |
 | `InvalidTtlError` | A store given a lifetime of zero or less |
 | `UnserializableKeyError` | Pickling a key its store keeps process-only state on |
+
+## Upgrading
+
+What changes for an application moving to 7.0, and how to keep the old behaviour where that is
+still possible: [Upgrading to 7.0](../../UPGRADING.md#xtr-lock).
 
 ## Development
 

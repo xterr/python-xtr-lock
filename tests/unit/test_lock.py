@@ -713,3 +713,48 @@ async def test_refreshing_a_lock_never_acquired_reports_the_conflict() -> None:
         await lock.refresh()
 
     assert not await lock.is_acquired()
+
+
+def _store(tmp_path: Path, which: str) -> InMemoryStore | FlockStore:
+    return InMemoryStore() if which == "in-memory" else FlockStore(tmp_path)
+
+
+async def _holds(lock: Lock) -> bool:
+    """Whether the lock believes it holds, checked against what the store says."""
+    believed = lock._holder.dirty
+    stored = await lock._store.exists(lock._key)
+    assert believed is stored
+    return believed
+
+
+@pytest.mark.parametrize("which", ["in-memory", "flock"])
+async def test_a_refused_upgrade_leaves_the_holder_agreeing_with_the_store(
+    tmp_path: Path, which: str
+) -> None:
+    # The lock must know afterwards whether it still holds anything, or a release
+    # and the context manager act on a guess.
+    store = _store(tmp_path, which)
+    reader, other = Lock(Key("res"), store), Lock(Key("res"), store)
+    _ = await reader.acquire_read()
+    _ = await other.acquire_read()
+
+    assert await reader.acquire() is False
+
+    _ = await _holds(reader)
+
+
+@pytest.mark.parametrize("which", ["in-memory", "flock"])
+async def test_a_cancelled_upgrade_leaves_the_holder_agreeing_with_the_store(
+    tmp_path: Path, which: str
+) -> None:
+    store = _store(tmp_path, which)
+    reader, other = Lock(Key("res"), store), Lock(Key("res"), store)
+    _ = await reader.acquire_read()
+    _ = await other.acquire_read()
+    upgrading = asyncio.create_task(reader.acquire(blocking=True))
+    await asyncio.sleep(0.2)
+    _ = upgrading.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await upgrading
+
+    _ = await _holds(reader)

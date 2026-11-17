@@ -272,9 +272,16 @@ class Lock(LoggerAware, SharedLockInterface):
         except asyncio.CancelledError:
             if not held_before:
                 await self._abandon()
+            else:
+                # An upgrade cut short may have let go of the read lock (a file
+                # lock does) or kept it: ask the store rather than guess.
+                await self._reconcile()
             raise
         except LockConflictedError:
-            self._holder.dirty = False
+            if held_before:
+                await self._reconcile()
+            else:
+                self._holder.dirty = False
             self.logger.info(
                 'Failed to acquire the "{resource}" lock. Someone else already acquired the lock.',
                 self._context(),
@@ -420,6 +427,18 @@ class Lock(LoggerAware, SharedLockInterface):
         self._holder.dirty = False
         with suppress(Exception):
             await asyncio.shield(self._store.delete(self._key))
+
+    async def _reconcile(self) -> None:
+        """Set what the holder believes it holds from the store, after a failed upgrade.
+
+        Shielded, so a cancellation already under way cannot leave it half done;
+        a store that cannot answer is read as holding nothing.
+        """
+        try:
+            held = await asyncio.shield(self._store.exists(self._key))
+        except Exception:  # noqa: BLE001 -- unknowable: treat as released, the safe reading
+            held = False
+        self._holder.dirty = held
 
     def _context(self, error: Exception | None = None) -> dict[str, object]:
         context: dict[str, object] = {"resource": str(self._key)}
