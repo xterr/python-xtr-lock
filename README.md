@@ -4,7 +4,7 @@
 
 **Exclusive and shared locks around resources, held in memory, in files, in Redis, or across several stores at once.**
 
-<img alt="python 3.11+" src="https://img.shields.io/badge/python-%E2%89%A5%203.11-3776AB?logo=python&logoColor=white">
+<img alt="python 3.14+" src="https://img.shields.io/badge/python-%E2%89%A5%203.14-3776AB?logo=python&logoColor=white">
 <img alt="asyncio" src="https://img.shields.io/badge/asyncio-native-1f6feb">
 <img alt="typed" src="https://img.shields.io/badge/typed-ty%20%2B%20basedpyright-1f6feb">
 <img alt="license MIT" src="https://img.shields.io/badge/license-MIT-blue">
@@ -46,7 +46,7 @@ uv add "xtr-lock[redis]"                  # RedisStore, on redis-py's asyncio cl
 uv add xtr-lock xtr-dependency-injection  # + the container, for the LockBundle
 ```
 
-Requires Python 3.11+. Depends on `typing-extensions`, `xtr-clock` and `xtr-logging-contracts` —
+Requires Python 3.14.4+. Depends on `xtr-clock` and `xtr-logging-contracts` —
 not on the container: the bundle is used when
 [xtr-dependency-injection](../xtr-dependency-injection) is installed beside the package, never as
 an extra, and the locks work without it.

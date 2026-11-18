@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, final, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, final, override, runtime_checkable
 
-from typing_extensions import override
 from xtr_clock import MonotonicClock
 from xtr_logging_contracts import EXCEPTION_KEY, LoggerAware
 

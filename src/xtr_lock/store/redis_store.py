@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import math
-from typing import TYPE_CHECKING, ClassVar, Final, Protocol, cast, final
+from typing import TYPE_CHECKING, ClassVar, Final, Protocol, cast, final, override
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from weakref import WeakKeyDictionary
 
-from typing_extensions import override
 from xtr_clock import Clock
 
 from xtr_lock.exception import (

@@ -15,9 +15,8 @@ import tempfile
 import weakref
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, cast, final
+from typing import TYPE_CHECKING, Final, cast, final, override
 
-from typing_extensions import override
 from xtr_clock import Clock
 
 from xtr_lock.blocking_shared_lock_store_interface import BlockingSharedLockStoreInterface

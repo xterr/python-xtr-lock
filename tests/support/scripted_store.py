@@ -8,7 +8,7 @@ wait, one that can share, and one that can wait to share.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -23,7 +23,7 @@ __all__ = [
     "ScriptedStore",
 ]
 
-Outcome: TypeAlias = "BaseException | bool | Callable[[Key], object] | None"
+type Outcome = "BaseException | bool | Callable[[Key], object] | None"
 """What a scripted call does: raise, return a value, or run against the key."""
 
 

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import final
+from typing import final, override
 
 import pytest
-from typing_extensions import override
 
 from xtr_lock import ExpiringStoreMixin, Key, LockExpiredError
 

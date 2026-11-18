@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, final, override
 
 import pytest
-from typing_extensions import override
 from xtr_clock import Clock, MockClock
 
 from tests.support.fake_redis import FakeRedis

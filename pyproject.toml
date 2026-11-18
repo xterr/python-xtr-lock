@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Xterr", email = "me@xterr.dev" }
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.14.4"
 license = "MIT"
 license-files = ["LICENSE"]
 keywords = ["lock", "mutex", "concurrency", "flock", "redis", "read-write-lock", "asyncio"]
@@ -14,21 +14,17 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
 dependencies = [
-    "typing-extensions>=4.4",
     "xtr-clock>=7.0,<8",
     "xtr-logging-contracts>=7.0,<8",
 ]
 
 [project.optional-dependencies]
 redis = [
-    "redis>=5.0",
+    "redis>=7.1",
 ]
 
 # Advertises the bundle so debug:bundles can name it when installed but not listed.
@@ -42,13 +38,13 @@ lock = "xtr_lock.recipe"
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.21",
-    "ruff>=0.8",
-    "pytest>=8",
-    "pytest-cov>=5",
-    "anyio>=4.0",
+    "basedpyright>=1.31.7",
+    "ruff>=0.14.7",
+    "pytest>=8.4",
+    "pytest-cov>=7.1",
+    "anyio>=4.10",
     "ty>=0.0.83",
-    "redis>=5.0",
+    "redis>=7.1",
     "xtr-dependency-injection>=7.0,<8",
     "xtr-logging>=7.0,<8",
     "xtr-service-contracts>=7.0,<8",
@@ -64,7 +60,7 @@ build-backend = "uv_build"
 # ─────────────────────────────────────────────────────────────────
 [tool.basedpyright]
 typeCheckingMode = "all"
-pythonVersion = "3.11"
+pythonVersion = "3.14"
 pythonPlatform = "All"
 include = ["src", "tests"]
 exclude = ["**/__pycache__", "**/.venv", "**/build", "**/dist", ".tmp"]
@@ -96,7 +92,7 @@ reportPrivateUsage = "none"
 # ruff — select = ["ALL"], minimal justified ignores
 # ─────────────────────────────────────────────────────────────────
 [tool.ruff]
-target-version = "py311"
+target-version = "py314"
 line-length = 100
 src = ["src", "tests"]
 

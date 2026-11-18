@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TypeAlias
 
 from xtr_dependency_injection import Reference, one_or_many
 
@@ -15,7 +14,7 @@ __all__ = ["DEFAULT_RESOURCE", "LockConfig", "StoreEntry"]
 DEFAULT_RESOURCE = "default"
 """The resource whose factory is provided without a qualifier."""
 
-StoreEntry: TypeAlias = str | Reference
+type StoreEntry = str | Reference
 """One store: a DSN or keyword :class:`~xtr_lock.store.StoreFactory` reads, or a connection."""
 
 

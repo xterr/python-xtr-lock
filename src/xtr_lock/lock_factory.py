@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, override
 
-from typing_extensions import override
 from xtr_logging_contracts import LoggerAware
 
 from .key import Key

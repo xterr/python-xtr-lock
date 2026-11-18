@@ -6,10 +6,9 @@ import asyncio
 import secrets
 import threading
 from contextlib import suppress
-from typing import TYPE_CHECKING, Final, NoReturn, Self, final
+from typing import TYPE_CHECKING, Final, NoReturn, Self, final, override
 from weakref import WeakKeyDictionary
 
-from typing_extensions import override
 from xtr_clock import Clock
 from xtr_logging_contracts import EXCEPTION_KEY, LoggerAware
 
