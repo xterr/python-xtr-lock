@@ -18,8 +18,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "xtr-clock>=7.0,<8",
-    "xtr-logging-contracts>=7.0,<8",
+    "xtr-clock>=7.2,<8",
+    "xtr-logging-contracts>=7.2,<8",
 ]
 
 [project.optional-dependencies]
@@ -45,9 +45,9 @@ dev = [
     "anyio>=4.10",
     "ty>=0.0.83",
     "redis>=7.1",
-    "xtr-dependency-injection>=7.0,<8",
-    "xtr-logging>=7.0,<8",
-    "xtr-service-contracts>=7.0,<8",
+    "xtr-dependency-injection>=7.2,<8",
+    "xtr-logging>=7.2,<8",
+    "xtr-service-contracts>=7.2,<8",
     "fakeredis[lua]>=2.38.0",
 ]
 
